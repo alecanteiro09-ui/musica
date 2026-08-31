@@ -7,6 +7,9 @@ import { PreviewAndPaywall } from "@/components/order/PreviewAndPaywall";
 import { UnlockedSuccess } from "@/components/order/UnlockedSuccess";
 
 export const metadata = { title: "Seu pedido" };
+// Nunca otimizar/cachear esta rota estaticamente — o status do pedido muda
+// por evento externo (geração de música, confirmação de pagamento).
+export const dynamic = "force-dynamic";
 
 export default async function OrderPage({ params }: { params: { token: string } }) {
   const bundle = await getOrderByBuyerToken(params.token);
@@ -47,7 +50,10 @@ export default async function OrderPage({ params }: { params: { token: string } 
   }
 
   if (order.status === "paid" || order.status === "delivered") {
-    return <UnlockedSuccess buyerToken={order.buyer_token} giftToken={order.gift_token} photos={photos} />;
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+    return (
+      <UnlockedSuccess buyerToken={order.buyer_token} giftToken={order.gift_token} photos={photos} siteUrl={siteUrl} />
+    );
   }
 
   return <Centered>Algo deu errado com esse pedido. Escreva pra contato@versounico.com.br.</Centered>;

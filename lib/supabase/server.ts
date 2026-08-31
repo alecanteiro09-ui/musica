@@ -48,6 +48,19 @@ export function createAdminClient() {
   return createRawClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { persistSession: false } }
+    {
+      auth: { persistSession: false },
+      // O Next.js App Router intercepta todo fetch() feito durante a
+      // renderização e, por padrão, cacheia a resposta — inclusive o fetch
+      // interno do supabase-js. Sem isso, o pedido/pagamento fica "preso"
+      // num estado antigo depois de mudar no banco (ex. após o pagamento
+      // confirmar), porque a mesma URL/params já teria uma resposta em
+      // cache. Esses dados mudam por evento externo (webhook/polling), então
+      // nunca podem vir do cache.
+      global: {
+        fetch: (input: RequestInfo | URL, init?: RequestInit) =>
+          fetch(input, { ...init, cache: "no-store" }),
+      },
+    }
   );
 }

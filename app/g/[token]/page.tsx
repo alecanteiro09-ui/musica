@@ -2,6 +2,10 @@ import { notFound } from "next/navigation";
 import { getGiftByToken } from "@/lib/actions/orders";
 import { GiftExperience } from "@/components/gift/GiftExperience";
 
+// Nunca cachear estaticamente: fotos podem ser adicionadas depois da entrega
+// e as signed URLs de áudio expiram em 1h, precisam ser reemitidas a cada acesso.
+export const dynamic = "force-dynamic";
+
 export async function generateMetadata({ params }: { params: { token: string } }) {
   const gift = await getGiftByToken(params.token);
   if (!gift) return { title: "Presente não encontrado" };

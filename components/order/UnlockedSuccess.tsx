@@ -10,17 +10,21 @@ export function UnlockedSuccess({
   buyerToken,
   giftToken,
   photos,
+  siteUrl,
 }: {
   buyerToken: string;
   giftToken: string;
   photos: OrderPhoto[];
+  /** Vem de NEXT_PUBLIC_SITE_URL (Server Component) — nunca ler de window.location aqui:
+   *  isso rende diferente no servidor (sem window) e no cliente, e quebra a hidratação. */
+  siteUrl: string;
 }) {
   const [qr, setQr] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
-  const giftUrl = typeof window !== "undefined" ? `${window.location.origin}/g/${giftToken}` : "";
+  const giftUrl = `${siteUrl}/g/${giftToken}`;
 
   useEffect(() => {
     if (!giftUrl) return;
@@ -59,7 +63,7 @@ export function UnlockedSuccess({
         href={`/g/${giftToken}`}
         className="mt-6 block truncate rounded-xl border border-base-border bg-base-soft px-4 py-3 text-sm text-accent"
       >
-        {giftUrl || `/g/${giftToken}`}
+        {giftUrl}
       </a>
 
       <a
