@@ -32,6 +32,13 @@ function buildTimestamps(lyric: string, duration: number): WordTimestamp[] {
 
 const TIMESTAMPS = buildTimestamps(DEMO_LYRIC, DEMO_DURATION);
 
+const SPARKLES = [
+  { left: "12%", top: "22%", size: 12, delay: "0s", duration: "2.6s" },
+  { left: "82%", top: "18%", size: 9, delay: "0.8s", duration: "3.1s" },
+  { left: "60%", top: "60%", size: 10, delay: "1.4s", duration: "2.8s" },
+  { left: "30%", top: "70%", size: 8, delay: "0.4s", duration: "3.4s" },
+];
+
 /**
  * Demo ao vivo pra landing page: toca um trecho de uma faixa real, gerada
  * pelo Verso Único (Suno via Kie.ai — ver lib/ai/providers/real-music.ts),
@@ -73,15 +80,36 @@ export function DemoPreview() {
   }
 
   return (
-    <div className="relative mx-auto w-full max-w-sm overflow-hidden rounded-2xl border border-base-border bg-base-soft p-6 shadow-card">
-      <span className="absolute right-4 top-4 rounded-full border border-base-border px-2 py-0.5 text-[10px] uppercase tracking-wide text-ink-muted">
-        exemplo
-      </span>
+    <div className="relative mx-auto w-full max-w-sm overflow-hidden rounded-2xl border border-base-border bg-base-soft shadow-card">
+      <div className="relative h-28 overflow-hidden">
+        <img src="/images/occasions/namorados.jpg" alt="" className="h-full w-full object-cover" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/15 to-black/0" />
+        {SPARKLES.map((s, i) => (
+          <span
+            key={i}
+            className="absolute text-wax"
+            style={{
+              left: s.left,
+              top: s.top,
+              fontSize: s.size,
+              animation: `sparkle ${s.duration} ease-in-out infinite`,
+              animationDelay: s.delay,
+            }}
+          >
+            ✦
+          </span>
+        ))}
+        <span className="absolute right-3 top-3 rounded-full bg-black/50 px-2 py-0.5 text-[10px] uppercase tracking-wide text-white">
+          exemplo
+        </span>
+        <div className="absolute bottom-2.5 left-4">
+          <p className="text-[10px] uppercase tracking-wide text-white/80">uma música para</p>
+          <p className="font-display text-xl italic text-white">Ana</p>
+        </div>
+      </div>
 
-      <p className="text-xs uppercase tracking-wide text-accent">uma música para</p>
-      <h3 className="mt-1 font-display text-2xl italic text-ink">Ana</h3>
-
-      <div className="mt-5 flex items-center gap-4">
+      <div className="p-6 pt-5">
+      <div className="flex items-center gap-4">
         <button
           type="button"
           onClick={toggle}
@@ -117,6 +145,7 @@ export function DemoPreview() {
           🧡
         </span>
       ))}
+      </div>
     </div>
   );
 }

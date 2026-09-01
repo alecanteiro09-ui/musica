@@ -6,25 +6,24 @@ import { cn } from "@/lib/utils";
 import { Reveal } from "./Reveal";
 
 const CATEGORIES = [
-  { id: "pai", emoji: "👨", label: "Pai", nickname: "seu pai", photo: "/images/occasions/pai.jpg" },
-  { id: "mae", emoji: "👩", label: "Mãe", nickname: "sua mãe", photo: "/images/occasions/mae.jpg" },
-  { id: "avos", emoji: "👵", label: "Avós", nickname: "sua avó", photo: "/images/occasions/avos.jpg" },
-  { id: "filhos", emoji: "🧒", label: "Filhos", nickname: "seu filho", photo: "/images/occasions/filhos.jpg" },
-  { id: "namorados", emoji: "❤️", label: "Namorados", nickname: "seu amor", photo: "/images/occasions/namorados.jpg" },
-  { id: "esposa", emoji: "💍", label: "Esposa", nickname: "sua esposa", photo: "/images/occasions/esposa.jpg" },
-  { id: "marido", emoji: "💍", label: "Marido", nickname: "seu marido", photo: "/images/occasions/marido.jpg" },
-  { id: "amiga", emoji: "👭", label: "Amiga", nickname: "sua amiga", photo: "/images/occasions/amiga.jpg" },
+  { id: "pai", emoji: "👨", label: "Pai", nickname: "seu pai", photo: "/images/occasions/pai.jpg", audio: "/audio/occasions/pai-preview.mp3" },
+  { id: "mae", emoji: "👩", label: "Mãe", nickname: "sua mãe", photo: "/images/occasions/mae.jpg", audio: "/audio/occasions/mae-preview.mp3" },
+  { id: "avos", emoji: "👵", label: "Avós", nickname: "sua avó", photo: "/images/occasions/avos.jpg", audio: "/audio/occasions/avos-preview.mp3" },
+  { id: "filhos", emoji: "🧒", label: "Filhos", nickname: "seu filho", photo: "/images/occasions/filhos.jpg", audio: "/audio/occasions/filhos-preview.mp3" },
+  { id: "namorados", emoji: "❤️", label: "Namorados", nickname: "seu amor", photo: "/images/occasions/namorados.jpg", audio: "/audio/occasions/namorados-preview.mp3" },
+  { id: "esposa", emoji: "💍", label: "Esposa", nickname: "sua esposa", photo: "/images/occasions/esposa.jpg", audio: "/audio/occasions/esposa-preview.mp3" },
+  { id: "marido", emoji: "💍", label: "Marido", nickname: "seu marido", photo: "/images/occasions/marido.jpg", audio: "/audio/occasions/marido-preview.mp3" },
+  { id: "amiga", emoji: "👭", label: "Amiga", nickname: "sua amiga", photo: "/images/occasions/amiga.jpg", audio: "/audio/occasions/amiga-preview.mp3" },
 ] as const;
 
 /**
  * Fotos: banco licenciado (Pexels License — uso comercial livre), uma por
  * categoria, sem relação com o Serenata Gift além do gênero da foto
- * (retrato/casal genérico). Áudio: a MESMA faixa real gerada pelo Verso
- * Único (public/audio/landing-demo-take1.mp3) em todas as abas — por isso
- * o selo "exemplo" fica sempre visível e a legenda não afirma ser uma
- * composição diferente por categoria. Inventar 8 letras/gravações
- * distintas exigiria 8 pedidos reais que não temos; fingir que existem
- * seria enganoso.
+ * (retrato/casal genérico). Áudio: 8 letras e gravações DIFERENTES, uma
+ * por categoria, geradas de verdade pelo Verso Único (Suno via Kie.ai —
+ * ver lib/ai/providers/real-music.ts) com uma letra escrita especificamente
+ * pra cada tipo de relação, cortadas em ~35s de prévia. Nada reaproveitado
+ * de um único exemplo genérico.
  */
 export function RelationshipGallery() {
   const [active, setActive] = useState<(typeof CATEGORIES)[number]["id"]>("pai");
@@ -48,8 +47,8 @@ export function RelationshipGallery() {
             Veja como fica pra cada tipo de relação
           </h2>
           <p className="mx-auto mt-4 max-w-lg text-center text-ink-muted">
-            O mesmo trecho cantado, mostrando o clima da página-presente pra quem você quer homenagear. A sua vai
-            nascer da sua própria história.
+            Uma letra e uma gravação diferentes pra cada tipo de relação — pra você sentir o clima da
+            página-presente antes de contar a sua própria história.
           </p>
 
           <div className="mt-8 flex flex-wrap justify-center gap-2">
@@ -103,8 +102,9 @@ export function RelationshipGallery() {
               </p>
             </div>
             <audio
+              key={category.audio}
               ref={audioRef}
-              src="/audio/landing-demo-take1.mp3"
+              src={category.audio}
               onPlay={() => setPlaying(true)}
               onPause={() => setPlaying(false)}
               onEnded={() => setPlaying(false)}

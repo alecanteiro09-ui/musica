@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Music2, Images, QrCode, Download } from "lucide-react";
 import { Reveal } from "./Reveal";
+import { FallingHearts } from "./FallingHearts";
 
 const FEATURES = [
   {
@@ -80,9 +81,14 @@ function PhoneMockup() {
     <div className="mx-auto w-full max-w-[280px] overflow-hidden rounded-[2rem] border border-white/10 bg-black/30 p-6 shadow-2xl backdrop-blur">
       <p className="text-center text-[10px] uppercase tracking-wide text-wax">uma música para</p>
       <p className="mt-1 text-center font-display text-xl italic text-[#FBF7FA]">Antônio</p>
-      <div className="mt-6 flex h-32 items-center justify-center rounded-xl bg-white/5">
-        <span className="flex h-12 w-12 items-center justify-center rounded-full bg-accent text-on-accent">
-          <Music2 size={18} />
+      <div className="relative mt-6 h-32 overflow-hidden rounded-xl">
+        <img src="/images/occasions/pai.jpg" alt="" className="h-full w-full object-cover" />
+        <div className="absolute inset-0 bg-black/35" />
+        <FallingHearts />
+        <span className="absolute inset-0 flex items-center justify-center">
+          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-accent text-on-accent shadow-lg">
+            <Music2 size={18} />
+          </span>
         </span>
       </div>
       <div className="mt-5 space-y-1.5">
