@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { Play, Pause } from "lucide-react";
 import { parseTaggedLyric, formatBRL } from "@/lib/utils";
-import { PixCharge } from "./PixCharge";
+import { CheckoutModal } from "./CheckoutModal";
 
 const PREVIEW_CAP_SECONDS = 40;
 
@@ -11,16 +11,23 @@ export function PreviewAndPaywall({
   buyerToken,
   nickname,
   priceCents,
+  buyerEmail,
   lyric,
   previewAudioUrl,
+  initialWantsPhotoPdf,
+  initialPhotoPdfFrameSize,
 }: {
   buyerToken: string;
   nickname: string;
+  /** Preço base (com voz clonada, se aplicável) — SEM o upsell de foto-quadro, decidido dentro do checkout. */
   priceCents: number;
+  buyerEmail: string;
   lyric: string;
   previewAudioUrl: string | null;
+  initialWantsPhotoPdf: boolean;
+  initialPhotoPdfFrameSize: string | null;
 }) {
-  const [wantsToPay, setWantsToPay] = useState(false);
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
 
@@ -88,37 +95,43 @@ export function PreviewAndPaywall({
         ))}
       </div>
 
-      {!wantsToPay && (
-        <ul className="mt-8 space-y-2 text-sm text-ink-muted">
-          {[
-            "A música completa, cantada do jeito que você escolheu",
-            "A página-presente com fotos e a letra acendendo em karaokê",
-            "Link e QR Code prontos pra enviar",
-            "O MP3 pra baixar e guardar pra sempre",
-          ].map((item) => (
-            <li key={item} className="flex items-start gap-2">
-              <span className="mt-0.5 text-accent">✓</span>
-              {item}
-            </li>
-          ))}
-        </ul>
-      )}
+      <ul className="mt-8 space-y-2 text-sm text-ink-muted">
+        {[
+          "A música completa, cantada do jeito que você escolheu",
+          "A página-presente com fotos e a letra acendendo em karaokê",
+          "Link e QR Code prontos pra enviar",
+          "O MP3 pra baixar e guardar pra sempre",
+        ].map((item) => (
+          <li key={item} className="flex items-start gap-2">
+            <span className="mt-0.5 text-accent">✓</span>
+            {item}
+          </li>
+        ))}
+      </ul>
 
-      {!wantsToPay ? (
-        <button
-          type="button"
-          onClick={() => setWantsToPay(true)}
-          className="mt-6 w-full animate-[pulse-ring_2.4s_ease-out_infinite] rounded-full bg-accent px-6 py-3 font-medium text-on-accent transition-transform hover:scale-[1.02] hover:bg-accent-dim active:scale-[0.98]"
-        >
-          Quero a música completa — {formatBRL(priceCents)}
-        </button>
-      ) : (
-        <PixCharge buyerToken={buyerToken} priceCents={priceCents} />
-      )}
+      <button
+        type="button"
+        onClick={() => setCheckoutOpen(true)}
+        className="mt-6 w-full animate-[pulse-ring_2.4s_ease-out_infinite] rounded-full bg-accent px-6 py-3 font-medium text-on-accent transition-transform hover:scale-[1.02] hover:bg-accent-dim active:scale-[0.98]"
+      >
+        Quero a música completa — {formatBRL(priceCents)}
+      </button>
 
       <p className="mt-4 text-center text-xs text-ink-muted">
         Pagamento único via Pix, liberação automática. Não gostou? A gente devolve, sem perguntas.
       </p>
+
+      {checkoutOpen && (
+        <CheckoutModal
+          buyerToken={buyerToken}
+          nickname={nickname}
+          priceCents={priceCents}
+          buyerEmail={buyerEmail}
+          initialWantsPhotoPdf={initialWantsPhotoPdf}
+          initialFrameSize={initialPhotoPdfFrameSize}
+          onClose={() => setCheckoutOpen(false)}
+        />
+      )}
     </div>
   );
 }

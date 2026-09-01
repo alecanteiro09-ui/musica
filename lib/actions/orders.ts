@@ -6,7 +6,8 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { getLyricsProvider } from "@/lib/ai/lyrics";
 import { getMusicProvider } from "@/lib/ai/music";
 import { getEmailProvider } from "@/lib/email/provider";
-import { computeOrderPriceCents } from "@/lib/pricing";
+import { computeOrderPriceCents, PHOTO_PDF_ADDON_CENTS } from "@/lib/pricing";
+import { isFrameSizeKey } from "@/lib/frameSizes";
 import type { Order, OrderLyric, OrderPhoto, OrderStatus, OrderTrack, WizardAnswers } from "@/types";
 
 export interface OrderBundle {
@@ -256,4 +257,69 @@ export async function checkSongGenerationProgress(buyerToken: string): Promise<{
   }
 
   return { status: order.status };
+}
+
+/** Troca o e-mail de entrega no próprio popup de checkout (link "trocar"). */
+export async function updateBuyerEmail(buyerToken: string, email: string): Promise<{ ok: boolean; error?: string }> {
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return { ok: false, error: "Digite um e-mail válido." };
+  }
+  const supabase = createAdminClient();
+  const { error } = await supabase.from("orders").update({ buyer_email: email }).eq("buyer_token", buyerToken);
+  if (error) return { ok: false, error: "Não deu pra salvar agora." };
+  revalidatePath(`/pedido/${buyerToken}`);
+  return { ok: true };
+}
+
+/**
+ * Marca no pedido que o comprador quer o upsell de foto-quadro, ANTES de
+ * pagar — sai no mesmo Pix da música (ver popup de checkout), não é uma
+ * compra separada. A linha em photo_pdf_orders só é criada quando o
+ * pagamento principal confirma (lib/payments/confirm.ts), reaproveitando o
+ * preço/foto/tamanho gravados aqui.
+ */
+export async function setPhotoPdfSelection(
+  buyerToken: string,
+  frameSize: string,
+  photoUrl: string
+): Promise<{ ok: boolean; error?: string }> {
+  if (!isFrameSizeKey(frameSize)) return { ok: false, error: "Tamanho inválido." };
+
+  const bundle = await getOrderByBuyerToken(buyerToken);
+  if (!bundle) return { ok: false, error: "Pedido não encontrado." };
+  const { order } = bundle;
+
+  const supabase = createAdminClient();
+  const { error } = await supabase
+    .from("orders")
+    .update({
+      wants_photo_pdf: true,
+      photo_pdf_frame_size: frameSize,
+      photo_pdf_source_url: photoUrl,
+      price_cents: computeOrderPriceCents(order.wants_custom_voice) + PHOTO_PDF_ADDON_CENTS,
+    })
+    .eq("id", order.id);
+
+  if (error) return { ok: false, error: "Não deu pra salvar agora." };
+  revalidatePath(`/pedido/${buyerToken}`);
+  return { ok: true };
+}
+
+/** Desmarca o upsell de foto-quadro antes de pagar, voltando o preço ao normal. */
+export async function clearPhotoPdfSelection(buyerToken: string): Promise<void> {
+  const bundle = await getOrderByBuyerToken(buyerToken);
+  if (!bundle) throw new Error("Pedido não encontrado.");
+  const { order } = bundle;
+
+  const supabase = createAdminClient();
+  await supabase
+    .from("orders")
+    .update({
+      wants_photo_pdf: false,
+      photo_pdf_frame_size: null,
+      photo_pdf_source_url: null,
+      price_cents: computeOrderPriceCents(order.wants_custom_voice),
+    })
+    .eq("id", order.id);
+  revalidatePath(`/pedido/${buyerToken}`);
 }

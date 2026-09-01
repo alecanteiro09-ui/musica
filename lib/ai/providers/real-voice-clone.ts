@@ -22,7 +22,9 @@ export const realVoiceCloneProvider: VoiceCloneProvider = {
       body: JSON.stringify({
         voiceUrl: input.voiceUrl,
         vocalStartS: input.vocalStartS ?? 0,
-        vocalEndS: input.vocalEndS ?? 12,
+        // Janela justa (a gravação no wizard já para sozinha em 12s) — menos
+        // áudio pra Kie.ai analisar tende a validar mais rápido.
+        vocalEndS: input.vocalEndS ?? 10,
         language: "pt",
       }),
     });

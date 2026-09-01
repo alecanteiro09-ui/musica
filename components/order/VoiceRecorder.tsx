@@ -76,16 +76,24 @@ function RecordStep({
   title,
   subtitle,
   minSeconds,
+  maxSeconds,
   onConfirm,
   busy,
 }: {
   title: string;
   subtitle: string;
   minSeconds: number;
+  maxSeconds: number;
   onConfirm: (blob: Blob) => void;
   busy: boolean;
 }) {
   const rec = useRecorder();
+
+  // Para sozinho no limite — grava só o necessário, sem enrolação, pra
+  // validar e clonar mais rápido (upload menor, menos áudio pra Kie.ai analisar).
+  useEffect(() => {
+    if (rec.recording && rec.seconds >= maxSeconds) rec.stop();
+  }, [rec.recording, rec.seconds, maxSeconds, rec.stop]);
   const [playing, setPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
   const blobUrl = rec.blob ? URL.createObjectURL(rec.blob) : null;
@@ -110,7 +118,7 @@ function RecordStep({
             {rec.recording ? <Square size={22} /> : <Mic size={24} />}
           </button>
           <p className="text-xs text-ink-muted">
-            {rec.recording ? `Gravando... ${rec.seconds}s` : `Toque pra gravar (mínimo ${minSeconds}s)`}
+            {rec.recording ? `Gravando... ${rec.seconds}s / ${maxSeconds}s` : `Toque pra gravar (${minSeconds}-${maxSeconds}s)`}
           </p>
         </div>
       ) : (
@@ -172,7 +180,7 @@ export function VoiceRecorder({
         setPhrase(result.phrase);
         setStep("recording_reading");
       }
-    }, 3000);
+    }, 1200);
     return () => clearInterval(poll);
   }, [step, buyerToken]);
 
@@ -187,7 +195,7 @@ export function VoiceRecorder({
         setError(result.error || "Não deu pra clonar essa voz.");
         setStep("failed");
       }
-    }, 3000);
+    }, 1200);
     return () => clearInterval(poll);
   }, [step, buyerToken, router]);
 
@@ -241,8 +249,9 @@ export function VoiceRecorder({
         {step === "intro" && (
           <RecordStep
             title="Grave um trecho cantando"
-            subtitle="Pode ser qualquer música, uns 10-15 segundos, num lugar mais silencioso possível. É só pra gente aprender o timbre da sua voz."
+            subtitle="Só uns 8-12 segundos, num lugar mais silencioso possível. Curto e direto valida mais rápido."
             minSeconds={8}
+            maxSeconds={12}
             busy={busy}
             onConfirm={handleSampleConfirm}
           />
@@ -251,7 +260,7 @@ export function VoiceRecorder({
         {(step === "awaiting_phrase" || step === "uploading_sample") && (
           <div className="flex flex-col items-center gap-3 py-6 text-center">
             <Loader2 size={22} className="animate-spin text-accent" />
-            <p className="text-sm text-ink-muted">Analisando sua voz e preparando a frase de verificação...</p>
+            <p className="text-sm text-ink-muted">Analisando sua voz... geralmente leva menos de 1 minuto.</p>
           </div>
         )}
 
@@ -259,7 +268,8 @@ export function VoiceRecorder({
           <RecordStep
             title="Agora leia (ou cante) essa frase"
             subtitle={`"${phrase}"`}
-            minSeconds={3}
+            minSeconds={2}
+            maxSeconds={7}
             busy={busy}
             onConfirm={handleReadingConfirm}
           />
@@ -268,7 +278,7 @@ export function VoiceRecorder({
         {(step === "processing" || step === "uploading_reading") && (
           <div className="flex flex-col items-center gap-3 py-6 text-center">
             <Loader2 size={22} className="animate-spin text-accent" />
-            <p className="text-sm text-ink-muted">Confirmando que é você e clonando sua voz. Isso leva um minuto...</p>
+            <p className="text-sm text-ink-muted">Confirmando que é você e clonando sua voz... quase lá.</p>
           </div>
         )}
 

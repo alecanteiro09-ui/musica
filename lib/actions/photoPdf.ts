@@ -2,61 +2,22 @@
 
 import { createAdminClient } from "@/lib/supabase/server";
 import { getOrderByBuyerToken } from "./orders";
-import { getPaymentProvider } from "@/lib/payments/provider";
 import { getImageEnhanceProvider } from "@/lib/ai/imageEnhance";
 import { getEmailProvider } from "@/lib/email/provider";
-import { PHOTO_PDF_ADDON_CENTS } from "@/lib/pricing";
 import { buildFramedPhotoPdf, isFrameSizeKey, type FrameSizeKey } from "@/lib/pdf/framePdf";
 
-/** Cria o pedido do addon (foto de quadro) e a cobrança Pix separada — compra feita depois que a música já foi paga. */
-export async function createPhotoPdfOrder(
-  buyerToken: string,
-  frameSize: string,
-  sourcePhotoUrl: string
-): Promise<{ ok: true; photoPdfOrderId: string; brCode: string; qrCodeImageUrl: string } | { ok: false; error: string }> {
-  if (!isFrameSizeKey(frameSize)) return { ok: false, error: "Tamanho inválido." };
-
+/**
+ * Encontra a foto-quadro do pedido (se a pessoa escolheu esse upsell no
+ * checkout) — usado na tela de sucesso pra saber se mostra o
+ * progresso/download. A linha só existe depois que o pagamento principal
+ * confirma (ver lib/payments/confirm.ts) — antes disso não há nada pra achar.
+ */
+export async function getPhotoPdfForOrder(buyerToken: string): Promise<{ id: string } | null> {
   const bundle = await getOrderByBuyerToken(buyerToken);
-  if (!bundle) return { ok: false, error: "Pedido não encontrado." };
-  const { order } = bundle;
-  if (order.status !== "paid" && order.status !== "delivered") {
-    return { ok: false, error: "Finaliza o pagamento da música primeiro." };
-  }
-
+  if (!bundle) return null;
   const supabase = createAdminClient();
-  const { data: row, error: insertError } = await supabase
-    .from("photo_pdf_orders")
-    .insert({ order_id: order.id, frame_size: frameSize, source_photo_url: sourcePhotoUrl, amount_cents: PHOTO_PDF_ADDON_CENTS })
-    .select("id")
-    .single();
-  if (insertError || !row) return { ok: false, error: "Não deu pra criar o pedido da foto agora." };
-
-  const correlationId = `photopdf:${row.id}`;
-  try {
-    const charge = await getPaymentProvider().createPixCharge({
-      orderId: order.id,
-      correlationId,
-      amountCents: PHOTO_PDF_ADDON_CENTS,
-      comment: `Verso Único — foto de quadro (${frameSize})`,
-      customer: { name: order.buyer_name ?? "Comprador", email: order.buyer_email ?? "" },
-    });
-
-    await supabase.from("payments").insert({
-      order_id: order.id,
-      provider: process.env.PAYMENT_PROVIDER || (process.env.WOOVI_APP_ID ? "woovi" : "mock"),
-      correlation_id: correlationId,
-      charge_id: charge.chargeId,
-      status: "pix_generated",
-      amount_cents: PHOTO_PDF_ADDON_CENTS,
-      pix_qrcode_image_url: charge.qrCodeImageUrl,
-      pix_copy_paste: charge.brCode,
-    });
-
-    return { ok: true, photoPdfOrderId: row.id, brCode: charge.brCode, qrCodeImageUrl: charge.qrCodeImageUrl };
-  } catch (err) {
-    console.error("[photo-pdf] falha ao criar cobrança", err);
-    return { ok: false, error: "Não deu pra gerar o Pix agora." };
-  }
+  const { data } = await supabase.from("photo_pdf_orders").select("id").eq("order_id", bundle.order.id).maybeSingle();
+  return data;
 }
 
 /** Usado pelo polling do frontend enquanto o QR/geração está na tela. Também é o que dispara a geração assim que o pagamento cai. */

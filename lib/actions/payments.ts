@@ -23,7 +23,11 @@ export async function createPixCharge(buyerToken: string): Promise<{ brCode: str
     .limit(1)
     .maybeSingle();
 
-  if (existing?.pix_copy_paste && existing?.pix_qrcode_image_url) {
+  // Só reaproveita um Pix ainda não pago se o valor bater com o preço atual
+  // do pedido — sem essa checagem, marcar o upsell de foto-quadro DEPOIS de
+  // já ter gerado um Pix (ex: abriu o checkout, fechou, voltou e marcou a
+  // caixinha) devolvia o QR antigo, com o valor errado (a mais barato).
+  if (existing?.pix_copy_paste && existing?.pix_qrcode_image_url && existing.amount_cents === order.price_cents) {
     return { brCode: existing.pix_copy_paste, qrCodeImageUrl: existing.pix_qrcode_image_url };
   }
 

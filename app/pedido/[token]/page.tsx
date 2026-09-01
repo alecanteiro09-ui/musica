@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { getOrderByBuyerToken, resolveTrackUrl } from "@/lib/actions/orders";
+import { computeOrderPriceCents } from "@/lib/pricing";
 import { ChorusPicker } from "@/components/order/ChorusPicker";
 import { LyricEditor } from "@/components/order/LyricEditor";
 import { VoiceRecorder } from "@/components/order/VoiceRecorder";
@@ -47,9 +48,12 @@ export default async function OrderPage({ params }: { params: { token: string } 
       <PreviewAndPaywall
         buyerToken={order.buyer_token}
         nickname={order.recipient_nickname ?? ""}
-        priceCents={order.price_cents}
+        priceCents={computeOrderPriceCents(order.wants_custom_voice)}
+        buyerEmail={order.buyer_email ?? ""}
         lyric={fullLyric?.content ?? ""}
         previewAudioUrl={previewAudioUrl}
+        initialWantsPhotoPdf={order.wants_photo_pdf}
+        initialPhotoPdfFrameSize={order.photo_pdf_frame_size}
       />
     );
   }

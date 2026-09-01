@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import QRCode from "qrcode";
 import { ImagePlus, Loader2 } from "lucide-react";
 import { uploadOrderPhoto } from "@/lib/actions/photos";
-import { PhotoPdfUpsell } from "./PhotoPdfUpsell";
+import { PhotoPdfStatus } from "./PhotoPdfStatus";
 import type { OrderPhoto } from "@/types";
 
 export function UnlockedSuccess({
@@ -101,7 +101,7 @@ export function UnlockedSuccess({
         {uploadError && <p className="mt-2 text-xs text-accent">{uploadError}</p>}
       </div>
 
-      <PhotoPdfUpsell buyerToken={buyerToken} photos={photos} />
+      <PhotoPdfStatus buyerToken={buyerToken} />
     </div>
   );
 }

@@ -58,6 +58,9 @@ export interface Order {
   mood: string | null;
   names_to_include: string | null;
   wants_custom_voice: boolean;
+  wants_photo_pdf: boolean;
+  photo_pdf_frame_size: string | null;
+  photo_pdf_source_url: string | null;
   voice_status: VoiceCloneStatus;
   voice_task_id: string | null;
   voice_id: string | null;

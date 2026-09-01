@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/server";
 import { getEmailProvider } from "@/lib/email/provider";
+import { PHOTO_PDF_ADDON_CENTS } from "@/lib/pricing";
 
 /**
  * Confirma um pagamento Pix e libera o pedido. Chamado tanto pelo webhook
@@ -30,19 +31,6 @@ export async function confirmPixPayment(correlationId: string, rawPayload: unkno
     })
     .eq("id", payment.id);
 
-  // Addon comprado separadamente da música (ver lib/actions/photoPdf.ts) —
-  // correlation_id vem no formato "photopdf:<photo_pdf_orders.id>", nunca
-  // toca orders.status, que já está em paid/delivered nesse ponto.
-  if (correlationId.startsWith("photopdf:")) {
-    const photoPdfOrderId = correlationId.slice("photopdf:".length);
-    await supabase
-      .from("photo_pdf_orders")
-      .update({ status: "paid", updated_at: new Date().toISOString() })
-      .eq("id", photoPdfOrderId)
-      .eq("status", "pending_payment");
-    return { ok: true, alreadyConfirmed: false };
-  }
-
   // preview_ready -> paid -> delivered: sem trabalho assíncrono de verdade
   // entre os dois hoje (as faixas já foram geradas antes do pagamento), mas
   // manter os dois passos deixa a máquina de estados pronta pro dia em que
@@ -59,9 +47,38 @@ export async function confirmPixPayment(correlationId: string, rawPayload: unkno
     .eq("id", payment.order_id)
     .eq("status", "paid");
 
+  await createPhotoPdfOrderIfRequested(payment.order_id);
   await sendGiftReadyEmailSafely(payment.order_id);
 
   return { ok: true, alreadyConfirmed: false };
+}
+
+/**
+ * O upsell de foto-quadro é escolhido no popup de checkout e paga junto no
+ * mesmo Pix (ver lib/actions/orders.ts:setPhotoPdfSelection) — por isso a
+ * linha em photo_pdf_orders só nasce aqui, já em status "paid", pronta pra
+ * o polling da tela de sucesso (lib/actions/photoPdf.ts) pegar e gerar.
+ */
+async function createPhotoPdfOrderIfRequested(orderId: string) {
+  const supabase = createAdminClient();
+  const { data: order } = await supabase
+    .from("orders")
+    .select("wants_photo_pdf, photo_pdf_frame_size, photo_pdf_source_url")
+    .eq("id", orderId)
+    .single();
+
+  if (!order?.wants_photo_pdf || !order.photo_pdf_frame_size || !order.photo_pdf_source_url) return;
+
+  const { data: existing } = await supabase.from("photo_pdf_orders").select("id").eq("order_id", orderId).maybeSingle();
+  if (existing) return;
+
+  await supabase.from("photo_pdf_orders").insert({
+    order_id: orderId,
+    frame_size: order.photo_pdf_frame_size,
+    source_photo_url: order.photo_pdf_source_url,
+    status: "paid",
+    amount_cents: PHOTO_PDF_ADDON_CENTS,
+  });
 }
 
 /**
