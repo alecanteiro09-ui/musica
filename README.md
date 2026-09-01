@@ -14,7 +14,7 @@ Contar a história → Letra grátis (2 refrões) → Editar letra → Gravar m�
 - **Tailwind CSS** (paleta própria — tinta-índigo + coral quente, ver `tailwind.config.ts`)
 - **Supabase** (Postgres + Storage) para pedidos, letras, faixas de áudio e fotos
 - **Anthropic (Claude)** para geração de letra — opcional, cai em modo simulado sem chave
-- **Eleven Music API (ElevenLabs)** para geração da música cantada — opcional, cai em modo simulado sem chave
+- **Mureka API** para geração da música cantada — opcional, cai em modo simulado sem chave
 - **Woovi** para cobrança Pix — opcional, cai em modo simulado sem chave
 - Lucide Icons, `qrcode`
 
@@ -53,15 +53,20 @@ nenhum call site, só as env vars:
 
 - **Letra**: defina `ANTHROPIC_API_KEY` (`lib/ai/providers/anthropic-lyrics.ts`).
 - **Música**: defina `MUSIC_API_KEY` com uma chave da
-  [Eleven Music API](https://elevenlabs.io/eleven-music-api) (`lib/ai/providers/real-music.ts`).
-  Escolhida por ter API oficial documentada, licença comercial inclusa desde o plano mais
-  barato, suporte a vocais com letra própria (inclusive em português) e um caminho claro de
-  Enterprise pra revenda — que é o nosso caso, já que vendemos a música gerada pra terceiros
-  como produto. **Antes de ir pra produção**: a integração foi escrita a partir da
-  documentação pública e não foi testada contra uma chave real — confira o formato atual do
-  request/response em `elevenlabs.io/docs/api-reference/music/compose` (essa API muda rápido;
-  já mudou o pipeline de letras/timestamps recentemente). A chamada é síncrona e pode demorar
-  — numa function serverless, ajuste o timeout ou mova pra um worker antes de ter volume real.
+  [Mureka API](https://platform.mureka.ai) (`lib/ai/providers/real-music.ts`). Escolhida no
+  lugar da Eleven Music API por ser bem mais barata (~US$0,02-0,04 por música vs ~US$0,54
+  por pedido) e "letra-primeiro" (você manda a letra pronta, ela compõe melodia + vocal +
+  arranjo em cima). Trade-off aceito conscientemente: a Kunlun Tech (dona da Mureka) não
+  publica de onde vêm os dados de treino do modelo — mesmo tipo de risco de direitos
+  autorais que o Suno tem, só que menor porque os termos de revenda aqui são explícitos.
+  **Antes de ir pra produção**: o endpoint de criação (`POST /v1/song/generate`) está
+  confirmado contra a documentação oficial (exemplo de request/response batendo), mas essa
+  doc **não mostra** o formato completo da resposta de consulta (`GET
+  /v1/song/query/{task_id}`) quando a música fica pronta — a extração em
+  `extractAudioUrl`/`extractDurationSeconds` tenta vários formatos plausíveis e loga a
+  resposta crua se não achar nada. Rode um teste real (como fizemos com a integração
+  anterior, que revelou um bug real de request antes de trocar de provedor) e ajuste esses
+  dois helpers pro formato exato antes de confiar em produção.
 - **Pagamento**: crie conta na [Woovi](https://woovi.com), configure `WOOVI_APP_ID` e
   aponte o webhook de confirmação pra `/api/webhooks/woovi`. Confirme na documentação
   atual da Woovi o mecanismo de autenticação do webhook antes de ir pra produção — o
@@ -104,8 +109,9 @@ de justificar o custo/complexidade de integrar cartão. Ver Roadmap abaixo.
 - **Painel admin** — hoje toda a leitura de pedido é feita com a service role key nas
   Server Actions; um painel de operação (ver pedidos, reprocessar geração, reembolsar)
   ainda não existe.
-- **Validar a integração com a Eleven Music API contra uma chave real** — ver ressalva na
-  seção acima; hoje só foi escrita a partir da documentação pública, nunca testada de verdade.
+- **Validar a resposta completa do polling da Mureka contra uma chave real** — ver ressalva
+  na seção acima; a criação do job está confirmada, falta validar o formato exato da
+  resposta quando a música termina de gerar.
 - **Expiração de cobrança Pix / limpeza de pedidos abandonados** — hoje um `draft` ou
   `song_generating` nunca expira sozinho.
 - **Realtime** em vez de polling para progresso de geração e confirmação de pagamento.
