@@ -54,19 +54,23 @@ nenhum call site, só as env vars:
 - **Letra**: defina `ANTHROPIC_API_KEY` (`lib/ai/providers/anthropic-lyrics.ts`).
 - **Música**: defina `MUSIC_API_KEY` com uma chave da
   [Mureka API](https://platform.mureka.ai) (`lib/ai/providers/real-music.ts`). Escolhida no
-  lugar da Eleven Music API por ser bem mais barata (~US$0,02-0,04 por música vs ~US$0,54
-  por pedido) e "letra-primeiro" (você manda a letra pronta, ela compõe melodia + vocal +
-  arranjo em cima). Trade-off aceito conscientemente: a Kunlun Tech (dona da Mureka) não
-  publica de onde vêm os dados de treino do modelo — mesmo tipo de risco de direitos
-  autorais que o Suno tem, só que menor porque os termos de revenda aqui são explícitos.
-  **Antes de ir pra produção**: o endpoint de criação (`POST /v1/song/generate`) está
-  confirmado contra a documentação oficial (exemplo de request/response batendo), mas essa
-  doc **não mostra** o formato completo da resposta de consulta (`GET
-  /v1/song/query/{task_id}`) quando a música fica pronta — a extração em
-  `extractAudioUrl`/`extractDurationSeconds` tenta vários formatos plausíveis e loga a
-  resposta crua se não achar nada. Rode um teste real (como fizemos com a integração
-  anterior, que revelou um bug real de request antes de trocar de provedor) e ajuste esses
-  dois helpers pro formato exato antes de confiar em produção.
+  lugar da Eleven Music API por ser "letra-primeiro" (você manda a letra pronta, ela compõe
+  melodia + vocal + arranjo em cima) e por ter um custo de entrada menor. Trade-off aceito
+  conscientemente: a Kunlun Tech (dona da Mureka) não publica de onde vêm os dados de
+  treino do modelo — mesmo tipo de risco de direitos autorais que o Suno tem, só que menor
+  porque os termos de revenda aqui são explícitos. **Testado de ponta a ponta contra uma
+  conta real** (não é mais só documentação): request de criação, parsing da resposta de
+  consulta e download/armazenamento do áudio final, tudo confirmado funcionando.
+  - **Preço não é por música** — é por capacidade concorrente. A Mureka cobra por "compra",
+    e cada tier trava um número fixo de requisições concorrentes por 12 meses: Trial
+    US$10 = 1, Basic US$1.000 = 5, Standard US$3.000 = 15, Business US$5.000 = 25,
+    Enterprise US$30.000 = 150 (ver [platform.mureka.ai/pricing](https://platform.mureka.ai/pricing)).
+    Com 1 concorrente, as duas faixas de um pedido têm que ser geradas em série de
+    verdade — a segunda só começa depois que a primeira chega em `succeeded`, não só
+    depois da chamada de criação responder. `generateSong()` inicia só a primeira faixa;
+    `getGenerationStatus()` inicia a segunda de forma preguiçosa quando a primeira termina.
+    **Antes de ter tráfego real**: no tier Trial, dois clientes comprando ao mesmo tempo
+    colidem — contrate um tier com mais concorrência (ou desenhe uma fila) antes de lançar.
 - **Pagamento**: crie conta na [Woovi](https://woovi.com), configure `WOOVI_APP_ID` e
   aponte o webhook de confirmação pra `/api/webhooks/woovi`. Confirme na documentação
   atual da Woovi o mecanismo de autenticação do webhook antes de ir pra produção — o
@@ -109,9 +113,8 @@ de justificar o custo/complexidade de integrar cartão. Ver Roadmap abaixo.
 - **Painel admin** — hoje toda a leitura de pedido é feita com a service role key nas
   Server Actions; um painel de operação (ver pedidos, reprocessar geração, reembolsar)
   ainda não existe.
-- **Validar a resposta completa do polling da Mureka contra uma chave real** — ver ressalva
-  na seção acima; a criação do job está confirmada, falta validar o formato exato da
-  resposta quando a música termina de gerar.
+- **Contratar um tier de mais concorrência na Mureka** (ou construir uma fila) antes de
+  lançar — ver ressalva na seção acima sobre o tier Trial (1 requisição concorrente).
 - **Expiração de cobrança Pix / limpeza de pedidos abandonados** — hoje um `draft` ou
   `song_generating` nunca expira sozinho.
 - **Realtime** em vez de polling para progresso de geração e confirmação de pagamento.
