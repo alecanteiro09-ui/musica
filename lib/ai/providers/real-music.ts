@@ -3,70 +3,35 @@ import type { GenerateSongInput, GenerationStatus, MusicProvider } from "../musi
 import type { WordTimestamp } from "@/types";
 
 /**
- * Integração real com a Mureka API — escolhida por ser bem mais barata que a
- * Eleven Music API (~US$0,02-0,04 por música vs ~US$0,54 por pedido), ter
- * licença comercial explícita desde o plano básico e ser "letra-primeiro"
- * (você manda a letra pronta, ela compõe melodia + vocal + arranjo em cima —
- * exatamente o nosso caso). Ver README para o trade-off aceito: a Kunlun Tech
- * (dona da Mureka) não publica de onde vêm os dados de treino do modelo —
- * mesmo tipo de risco de direitos autorais que o Suno tem, só que menor
- * porque os termos de revenda aqui são explícitos.
+ * Integração real com o Suno via Kie.ai (kie.ai/suno-api) — o Suno em si não
+ * tem API pública própria (só anunciou, em jul/2026, um programa de
+ * parceiros fechado, sem documentação pública nem prazo). Esta é uma
+ * decisão CONSCIENTE de assumir o risco de usar uma camada não-oficial:
+ * sem licença de revenda explícita do Suno, sujeita a mudar ou ser cortada
+ * sem aviso se o Suno decidir bloquear esses provedores. Ver README pra o
+ * histórico completo da decisão (a alternativa mais segura era a Mureka —
+ * dá pra ver essa implementação no histórico do git, caso precise voltar).
  *
- * IMPORTANTE: escrito a partir da documentação pública em
- * https://platform.mureka.ai/docs/ — o endpoint de criação (POST
- * /v1/song/generate) e a resposta inicial estão confirmados com exemplo
- * oficial, mas a doc pública NÃO mostra o formato completo da resposta do
- * endpoint de consulta (GET /v1/song/query/{task_id}) quando a música fica
- * pronta — nem os valores exatos que o campo `status` assume além de
- * "preparing". A extração abaixo tenta vários formatos plausíveis
- * (`extractAudioUrl`/`extractDurationSeconds`) e loga a resposta crua se não
- * encontrar nada.
- *
- * PREÇO/CONCORRÊNCIA (confirmado ao vivo, plataforma real): a Mureka cobra
- * por "compra" — cada tier trava um número fixo de requisições concorrentes
- * pelos próximos 12 meses (Trial US$10 = 1 concorrente, Basic US$1.000 = 5,
- * Standard US$3.000 = 15, Business US$5.000 = 25, Enterprise US$30.000 =
- * 150 — ver platform.mureka.ai/pricing). Isso não é o mesmo que "preço por
- * música" — é uma licença de capacidade. Com 1 concorrente (tier de teste),
- * as duas faixas do pedido têm que ser geradas em série de verdade, uma só
- * começando depois que a outra chega em "succeeded" — não basta só não
- * chamar em paralelo, tem que esperar terminar. É exatamente isso que
- * generateSong()/getGenerationStatus() fazem abaixo. Antes de ter tráfego
- * real, contratar um tier com mais concorrência — no tier de teste, dois
- * clientes comprando ao mesmo tempo colidem.
+ * Documentação oficial da Kie.ai (https://docs.kie.ai/suno-api/), testada:
+ * - POST /api/v1/generate — cria a tarefa, UMA chamada já gera as 2 versões
+ *   (campo `sunoData` na resposta final tem 2 itens) — mais simples que a
+ *   Mureka, que exigia 2 chamadas em série por causa do limite de 1
+ *   requisição concorrente. Aqui o rate limit é bem mais folgado: 20
+ *   requisições novas / 10s, ~100+ tarefas concorrentes por conta.
+ * - GET /api/v1/generate/record-info?taskId=X — consulta o status.
+ * - Preço: 12 créditos (~US$0,06) por pedido completo, já com as 2 versões.
  */
 
-const MUREKA_BASE = "https://api.mureka.ai/v1";
+const KIE_BASE = "https://api.kie.ai/api/v1";
+const MODEL = "V4_5"; // bom equilíbrio custo/qualidade — trocar por V5/V5_5 se quiser mais fidelidade
 
-/**
- * A conta paga é por "compra" e cada tier trava um número fixo de
- * requisições CONCORRENTES — confirmado em platform.mureka.ai/pricing:
- * Trial (US$10) = 1 concorrente, Basic (US$1.000) = 5, e assim por diante.
- * "Concorrente" aqui é a tarefa de geração inteira, não só a chamada HTTP —
- * então com 1 slot, a segunda faixa (take_2) só pode ser *iniciada* depois
- * que a primeira (take_1) chegar em status de sucesso, não só depois do
- * take_1 responder à chamada de criação. generateSong() só inicia a
- * primeira; getGenerationStatus() inicia a segunda de forma preguiçosa, no
- * primeiro poll em que a primeira já estiver pronta.
- *
- * Guardamos esse estado em memória, keyed pelo jobId (= task_id da primeira
- * faixa). Mesma ressalva de sempre: só funciona em processo Node persistente
- * (`next dev`); numa serverless real, mova esse estado pra fora do processo
- * (ex. numa coluna em order_tracks) antes de ter tráfego de verdade.
- */
-interface MurekaJob {
-  input: GenerateSongInput;
-  taskId1: string;
-  taskId2: string | null;
-  take1?: { audioUrl: string; durationSeconds: number };
-}
-const jobs = new Map<string, MurekaJob>();
-
-// Valores de status que já vimos confirmados ou que são o padrão mais comum
-// em APIs assíncronas parecidas (Suno-like). Ajuste aqui se a Mureka usar
-// nomes diferentes — é o único lugar que precisa mudar.
-const SUCCESS_STATES = ["succeeded", "success", "completed", "complete", "finished"];
-const FAILURE_STATES = ["failed", "failure", "error", "timeouted", "timeout", "cancelled"];
+// getGenerationStatus() só recebe o providerJobId (= taskId), mas precisa
+// da letra pra calcular os tempos de palavra do karaokê quando a API não
+// devolve timing próprio — guardamos aqui, keyed pelo taskId, no momento em
+// que a geração começa. Mesma ressalva de sempre: só funciona em processo
+// Node persistente (`next dev`); numa serverless real, mova pra uma coluna
+// em order_tracks (a letra já existe no banco) em vez de memória do processo.
+const lyricByTaskId = new Map<string, string>();
 
 function voiceLabel(v: string): string {
   if (v === "masculina") return "male vocal";
@@ -94,64 +59,9 @@ function authHeaders(): Record<string, string> {
   return { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" };
 }
 
-async function startGeneration(input: GenerateSongInput): Promise<string> {
-  const prompt = `${input.genre || "pop"}, ${voiceLabel(input.voicePreference)}, Brazilian Portuguese lyrics`;
-
-  const res = await fetch(`${MUREKA_BASE}/song/generate`, {
-    method: "POST",
-    headers: authHeaders(),
-    body: JSON.stringify({ lyrics: input.lyric, model: "auto", prompt }),
-  });
-
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Falha ao iniciar geração na Mureka (${res.status}): ${body}`);
-  }
-
-  const data = await res.json();
-  if (!data.id) throw new Error(`Resposta da Mureka sem "id" de tarefa: ${JSON.stringify(data)}`);
-  return String(data.id);
-}
-
-async function queryTask(taskId: string): Promise<any> {
-  const res = await fetch(`${MUREKA_BASE}/song/query/${taskId}`, { headers: authHeaders() });
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Falha ao consultar tarefa Mureka ${taskId} (${res.status}): ${body}`);
-  }
-  return res.json();
-}
-
-/** Tenta achar a URL do mp3 em alguns formatos plausíveis de resposta — ver nota no topo do arquivo. */
-function extractAudioUrl(raw: any): string | null {
-  return (
-    raw?.choices?.[0]?.mp3_url ??
-    raw?.choices?.[0]?.url ??
-    raw?.data?.[0]?.mp3_url ??
-    raw?.song?.mp3_url ??
-    raw?.mp3_url ??
-    null
-  );
-}
-
-function extractDurationSeconds(raw: any, fallbackWords: string[]): number {
-  const ms =
-    raw?.choices?.[0]?.duration_milliseconds ??
-    raw?.data?.[0]?.duration_milliseconds ??
-    raw?.song?.duration_milliseconds ??
-    raw?.duration_milliseconds;
-  if (typeof ms === "number" && ms > 0) return ms / 1000;
-  // sem duração na resposta: estima ~0.4s por palavra (só para o karaokê ter uma base)
-  return Math.max(20, fallbackWords.length * 0.4);
-}
-
-function extractStatus(raw: any): string {
-  return String(raw?.status ?? raw?.state ?? "").toLowerCase();
-}
-
 async function downloadAndStore(url: string, path: string): Promise<void> {
   const audioRes = await fetch(url);
-  if (!audioRes.ok) throw new Error(`Falha ao baixar áudio da Mureka (${audioRes.status}): ${url}`);
+  if (!audioRes.ok) throw new Error(`Falha ao baixar áudio (${audioRes.status}): ${url}`);
   const buffer = Buffer.from(await audioRes.arrayBuffer());
 
   const supabase = createAdminClient();
@@ -164,84 +74,84 @@ async function downloadAndStore(url: string, path: string): Promise<void> {
 
 export const realMusicProvider: MusicProvider = {
   async generateSong(input: GenerateSongInput) {
-    // Só inicia a PRIMEIRA faixa aqui. A segunda começa depois, dentro do
-    // polling — ver nota acima sobre o limite de 1 requisição concorrente.
-    const taskId1 = await startGeneration(input);
-    jobs.set(taskId1, { input, taskId1, taskId2: null });
-    return { providerJobId: taskId1 };
+    const style = `${input.genre || "pop"}, ${voiceLabel(input.voicePreference)}, Brazilian Portuguese`;
+    const title = `Verso Único — ${input.orderId.slice(0, 8)}`;
+
+    // callBackUrl é obrigatório pra API aceitar o request (erro 422 sem ele),
+    // mesmo não estando documentado como tal — mas não dependemos dele:
+    // consultamos o status por polling (getGenerationStatus), então o valor
+    // só precisa existir, não precisa ser alcançável durante dev local.
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://verso-unico.example.com";
+
+    const res = await fetch(`${KIE_BASE}/generate`, {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify({
+        prompt: input.lyric,
+        style,
+        title,
+        customMode: true,
+        instrumental: false,
+        model: MODEL,
+        callBackUrl: `${siteUrl}/api/webhooks/suno`,
+      }),
+    });
+
+    if (!res.ok) {
+      const body = await res.text();
+      throw new Error(`Falha ao iniciar geração no Suno/Kie.ai (${res.status}): ${body}`);
+    }
+
+    const json = await res.json();
+    const taskId = json?.data?.taskId;
+    if (!taskId) throw new Error(`Resposta sem taskId: ${JSON.stringify(json)}`);
+
+    lyricByTaskId.set(taskId, input.lyric);
+    return { providerJobId: taskId };
   },
 
   async getGenerationStatus(providerJobId: string): Promise<GenerationStatus> {
-    const job = jobs.get(providerJobId);
-    if (!job) return { status: "failed" };
-
-    const words = wordsFromLyric(job.input.lyric);
-
-    // Fase 1: esperando a primeira faixa (take_1) terminar.
-    if (!job.taskId2) {
-      const raw1 = await queryTask(job.taskId1);
-      const status1 = extractStatus(raw1);
-
-      if (FAILURE_STATES.includes(status1)) {
-        console.error("[mureka] take_1 falhou", { taskId: job.taskId1, status1 });
-        return { status: "failed" };
-      }
-      if (!SUCCESS_STATES.includes(status1)) return { status: "processing" };
-
-      const url1 = extractAudioUrl(raw1);
-      if (!url1) {
-        console.error("[mureka] take_1 concluído mas sem URL de áudio reconhecida", raw1);
-        return { status: "failed" };
-      }
-      const duration1 = extractDurationSeconds(raw1, words);
-      const path1 = `mureka/${job.taskId1}.mp3`;
-      await downloadAndStore(url1, path1);
-      job.take1 = { audioUrl: path1, durationSeconds: duration1 };
-
-      // take_1 pronto — só agora dá pra ocupar o único slot concorrente com a take_2.
-      job.taskId2 = await startGeneration(job.input);
-      jobs.set(providerJobId, job);
-      return { status: "processing" };
+    const res = await fetch(`${KIE_BASE}/generate/record-info?taskId=${providerJobId}`, {
+      headers: authHeaders(),
+    });
+    if (!res.ok) {
+      const body = await res.text();
+      throw new Error(`Falha ao consultar tarefa ${providerJobId} (${res.status}): ${body}`);
     }
 
-    // Fase 2: take_1 já pronto, esperando a take_2.
-    const raw2 = await queryTask(job.taskId2);
-    const status2 = extractStatus(raw2);
+    const json = await res.json();
+    const status: string = json?.data?.status ?? "";
 
-    if (FAILURE_STATES.includes(status2)) {
-      console.error("[mureka] take_2 falhou", { taskId: job.taskId2, status2 });
+    const FAILURE_STATES = ["CREATE_TASK_FAILED", "GENERATE_AUDIO_FAILED", "CALLBACK_EXCEPTION", "SENSITIVE_WORD_ERROR"];
+    if (FAILURE_STATES.includes(status)) {
+      console.error("[suno/kie.ai] tarefa falhou", { providerJobId, status, json });
       return { status: "failed" };
     }
-    if (!SUCCESS_STATES.includes(status2)) return { status: "processing" };
+    if (status !== "SUCCESS") return { status: "processing" };
 
-    const url2 = extractAudioUrl(raw2);
-    if (!url2) {
-      console.error("[mureka] take_2 concluído mas sem URL de áudio reconhecida", raw2);
+    const sunoData: any[] = json?.data?.response?.sunoData ?? [];
+    if (sunoData.length < 2) {
+      console.error("[suno/kie.ai] SUCCESS mas sunoData com menos de 2 faixas", json);
       return { status: "failed" };
     }
-    const duration2 = extractDurationSeconds(raw2, words);
-    const path2 = `mureka/${job.taskId2}.mp3`;
-    await downloadAndStore(url2, path2);
 
-    const take1 = job.take1!;
-    jobs.delete(providerJobId);
+    const words = wordsFromLyric(lyricByTaskId.get(providerJobId) ?? "");
 
-    return {
-      status: "ready",
-      tracks: [
-        {
-          variant: "take_1",
-          audioUrl: take1.audioUrl,
-          durationSeconds: take1.durationSeconds,
-          wordTimestamps: interpolateTimestamps(words, take1.durationSeconds),
-        },
-        {
-          variant: "take_2",
-          audioUrl: path2,
-          durationSeconds: duration2,
-          wordTimestamps: interpolateTimestamps(words, duration2),
-        },
-      ],
-    };
+    const tracks = await Promise.all(
+      sunoData.slice(0, 2).map(async (track, i) => {
+        const variant = i === 0 ? "take_1" : "take_2";
+        const durationSeconds = Number(track.duration) || Math.max(20, words.length * 0.4);
+        const path = `suno/${providerJobId}-${variant}.mp3`;
+        await downloadAndStore(track.audio_url, path);
+        return {
+          variant: variant as "take_1" | "take_2",
+          audioUrl: path,
+          durationSeconds,
+          wordTimestamps: interpolateTimestamps(words, durationSeconds),
+        };
+      })
+    );
+
+    return { status: "ready", tracks };
   },
 };

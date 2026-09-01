@@ -14,7 +14,7 @@ Contar a história → Letra grátis (2 refrões) → Editar letra → Gravar m�
 - **Tailwind CSS** (paleta própria — tinta-índigo + coral quente, ver `tailwind.config.ts`)
 - **Supabase** (Postgres + Storage) para pedidos, letras, faixas de áudio e fotos
 - **Anthropic (Claude)** para geração de letra — opcional, cai em modo simulado sem chave
-- **Mureka API** para geração da música cantada — opcional, cai em modo simulado sem chave
+- **Suno via Kie.ai** para geração da música cantada — opcional, cai em modo simulado sem chave
 - **Woovi** para cobrança Pix — opcional, cai em modo simulado sem chave
 - Lucide Icons, `qrcode`
 
@@ -52,25 +52,27 @@ Cada integração vive atrás de uma interface (`lib/ai/lyrics.ts`, `lib/ai/musi
 nenhum call site, só as env vars:
 
 - **Letra**: defina `ANTHROPIC_API_KEY` (`lib/ai/providers/anthropic-lyrics.ts`).
-- **Música**: defina `MUSIC_API_KEY` com uma chave da
-  [Mureka API](https://platform.mureka.ai) (`lib/ai/providers/real-music.ts`). Escolhida no
-  lugar da Eleven Music API por ser "letra-primeiro" (você manda a letra pronta, ela compõe
-  melodia + vocal + arranjo em cima) e por ter um custo de entrada menor. Trade-off aceito
-  conscientemente: a Kunlun Tech (dona da Mureka) não publica de onde vêm os dados de
-  treino do modelo — mesmo tipo de risco de direitos autorais que o Suno tem, só que menor
-  porque os termos de revenda aqui são explícitos. **Testado de ponta a ponta contra uma
-  conta real** (não é mais só documentação): request de criação, parsing da resposta de
-  consulta e download/armazenamento do áudio final, tudo confirmado funcionando.
-  - **Preço não é por música** — é por capacidade concorrente. A Mureka cobra por "compra",
-    e cada tier trava um número fixo de requisições concorrentes por 12 meses: Trial
-    US$10 = 1, Basic US$1.000 = 5, Standard US$3.000 = 15, Business US$5.000 = 25,
-    Enterprise US$30.000 = 150 (ver [platform.mureka.ai/pricing](https://platform.mureka.ai/pricing)).
-    Com 1 concorrente, as duas faixas de um pedido têm que ser geradas em série de
-    verdade — a segunda só começa depois que a primeira chega em `succeeded`, não só
-    depois da chamada de criação responder. `generateSong()` inicia só a primeira faixa;
-    `getGenerationStatus()` inicia a segunda de forma preguiçosa quando a primeira termina.
-    **Antes de ter tráfego real**: no tier Trial, dois clientes comprando ao mesmo tempo
-    colidem — contrate um tier com mais concorrência (ou desenhe uma fila) antes de lançar.
+- **Música**: defina `MUSIC_API_KEY` com uma chave da [Kie.ai](https://kie.ai)
+  (`lib/ai/providers/real-music.ts`), uma camada não-oficial sobre o Suno.
+  **Risco aceito conscientemente**: o Suno em si não tem API comercial pública (só
+  anunciou, em jul/2026, um programa de parceiros fechado, sem documentação nem prazo) —
+  usar a Kie.ai significa depender de um provedor terceiro sem licença de revenda
+  explícita do Suno, sujeito a mudar ou ser cortado sem aviso. A alternativa mais segura
+  avaliada foi a Mureka API (termos de revenda explícitos, ainda que sem transparência
+  sobre dados de treino) — essa implementação continua disponível no histórico do git
+  caso seja necessário voltar atrás. **Testado de ponta a ponta contra uma conta real**:
+  request de criação (`POST /api/v1/generate`), polling de status
+  (`GET /api/v1/generate/record-info`) e download/armazenamento das 2 faixas de áudio
+  geradas, tudo confirmado funcionando — incluindo reprodução real de uma faixa de 114s.
+  - **Uma chamada já gera as 2 versões** (`sunoData` na resposta tem 2 itens) — mais
+    simples que a Mureka, que exigia gerar as faixas em série por causa de um limite de
+    1 requisição concorrente no tier de entrada. Aqui o rate limit é bem mais folgado:
+    20 requisições novas / 10s, ~100+ tarefas concorrentes por conta.
+  - **`callBackUrl` é obrigatório** no corpo do `POST /generate` (erro 422 sem ele), mesmo
+    a documentação não deixando isso claro. Não dependemos do callback de fato — o status
+    é obtido por polling — então o valor só precisa existir, não precisa ser alcançável.
+  - **Preço**: 12 créditos (~US$0,06) por pedido completo, já com as 2 versões — bem mais
+    barato que o modelo de capacidade-concorrente pré-paga da Mureka.
 - **Pagamento**: crie conta na [Woovi](https://woovi.com), configure `WOOVI_APP_ID` e
   aponte o webhook de confirmação pra `/api/webhooks/woovi`. Confirme na documentação
   atual da Woovi o mecanismo de autenticação do webhook antes de ir pra produção — o
@@ -113,8 +115,9 @@ de justificar o custo/complexidade de integrar cartão. Ver Roadmap abaixo.
 - **Painel admin** — hoje toda a leitura de pedido é feita com a service role key nas
   Server Actions; um painel de operação (ver pedidos, reprocessar geração, reembolsar)
   ainda não existe.
-- **Contratar um tier de mais concorrência na Mureka** (ou construir uma fila) antes de
-  lançar — ver ressalva na seção acima sobre o tier Trial (1 requisição concorrente).
+- **Substituir a Kie.ai por uma API oficial do Suno** (ou por outro provedor com termos de
+  revenda explícitos, como a Mureka) assim que uma estiver disponível — ver ressalva na
+  seção acima sobre o risco de depender de uma camada não-oficial.
 - **Expiração de cobrança Pix / limpeza de pedidos abandonados** — hoje um `draft` ou
   `song_generating` nunca expira sozinho.
 - **Realtime** em vez de polling para progresso de geração e confirmação de pagamento.
