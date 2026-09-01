@@ -1,7 +1,7 @@
 const STATS = [
   { value: "segundos", label: "pra letra ficar pronta" },
   { value: "poucos minutos", label: "pra música ser gravada" },
-  { value: "2 versões", label: "cantadas, sempre" },
+  { value: "100% única", label: "nunca se repete" },
 ];
 
 export function StatsStrip() {

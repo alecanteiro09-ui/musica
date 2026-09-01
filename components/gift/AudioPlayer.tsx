@@ -1,7 +1,6 @@
 "use client";
 
 import { Play, Pause } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -15,18 +14,12 @@ export function AudioPlayer({
   duration,
   onToggle,
   onSeek,
-  variants,
-  activeVariant,
-  onChangeVariant,
 }: {
   playing: boolean;
   currentTime: number;
   duration: number;
   onToggle: () => void;
   onSeek: (time: number) => void;
-  variants: string[];
-  activeVariant: string;
-  onChangeVariant: (variant: string) => void;
 }) {
   return (
     <div className="rounded-xl border border-base-border bg-base-soft/80 p-4 backdrop-blur">
@@ -55,24 +48,6 @@ export function AudioPlayer({
           </div>
         </div>
       </div>
-
-      {variants.length > 1 && (
-        <div className="mt-3 flex justify-center gap-2">
-          {variants.map((v, i) => (
-            <button
-              key={v}
-              type="button"
-              onClick={() => onChangeVariant(v)}
-              className={cn(
-                "rounded-full border px-3 py-1 text-xs",
-                activeVariant === v ? "border-accent text-accent" : "border-base-border text-ink-muted"
-              )}
-            >
-              Versão {i + 1}
-            </button>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

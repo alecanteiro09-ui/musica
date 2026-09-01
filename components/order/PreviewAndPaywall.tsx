@@ -91,7 +91,7 @@ export function PreviewAndPaywall({
       {!wantsToPay && (
         <ul className="mt-8 space-y-2 text-sm text-ink-muted">
           {[
-            "A música completa, cantada, em 2 versões diferentes",
+            "A música completa, cantada do jeito que você escolheu",
             "A página-presente com fotos e a letra acendendo em karaokê",
             "Link e QR Code prontos pra enviar",
             "O MP3 pra baixar e guardar pra sempre",

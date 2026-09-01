@@ -13,13 +13,13 @@ import type { WordTimestamp } from "@/types";
  * dá pra ver essa implementação no histórico do git, caso precise voltar).
  *
  * Documentação oficial da Kie.ai (https://docs.kie.ai/suno-api/), testada:
- * - POST /api/v1/generate — cria a tarefa, UMA chamada já gera as 2 versões
- *   (campo `sunoData` na resposta final tem 2 itens) — mais simples que a
- *   Mureka, que exigia 2 chamadas em série por causa do limite de 1
- *   requisição concorrente. Aqui o rate limit é bem mais folgado: 20
- *   requisições novas / 10s, ~100+ tarefas concorrentes por conta.
+ * - POST /api/v1/generate — cria a tarefa. A API sempre devolve 2 faixas em
+ *   `sunoData`, mas o produto entrega só UMA música por pedido (decisão do
+ *   usuário — mais simples pro cliente que uma escolha entre versões); só
+ *   usamos `sunoData[0]`, a segunda fica sem download/uso.
  * - GET /api/v1/generate/record-info?taskId=X — consulta o status.
- * - Preço: 12 créditos (~US$0,06) por pedido completo, já com as 2 versões.
+ * - Preço: 12 créditos (~US$0,06) por pedido completo (cobra pelas 2 faixas
+ *   mesmo só usando 1 — não tem como pedir só uma da API).
  */
 
 const KIE_BASE = "https://api.kie.ai/api/v1";
@@ -49,8 +49,20 @@ function wordsFromLyric(lyric: string): string[] {
 }
 
 function interpolateTimestamps(words: string[], durationSeconds: number): WordTimestamp[] {
-  const step = durationSeconds / Math.max(1, words.length);
-  return words.map((word, i) => ({ word, start: +(i * step).toFixed(2), end: +((i + 1) * step).toFixed(2) }));
+  // Suno sempre deixa alguns segundos de introdução instrumental antes da
+  // voz entrar. Sem descontar isso, a letra acendia adiantada em relação
+  // ao que estava sendo cantado de verdade (bug reportado testando um
+  // pedido real). Não temos timing palavra-a-palavra do provedor, então
+  // isso é uma estimativa — mas uma folga proporcional no início já resolve
+  // a maior parte do desalinhamento.
+  const introOffset = Math.min(3, durationSeconds * 0.08);
+  const sungDuration = Math.max(1, durationSeconds - introOffset);
+  const step = sungDuration / Math.max(1, words.length);
+  return words.map((word, i) => ({
+    word,
+    start: +(introOffset + i * step).toFixed(2),
+    end: +(introOffset + (i + 1) * step).toFixed(2),
+  }));
 }
 
 function authHeaders(): Record<string, string> {
@@ -74,7 +86,7 @@ async function downloadAndStore(url: string, path: string): Promise<void> {
 
 export const realMusicProvider: MusicProvider = {
   async generateSong(input: GenerateSongInput) {
-    const style = `${input.genre || "pop"}, ${voiceLabel(input.voicePreference)}, Brazilian Portuguese`;
+    const style = `${input.genre || "pop"}, ${voiceLabel(input.voicePreference)}, Brazilian Portuguese, warm and intimate lead vocal, radio-quality mix, emotionally sincere delivery, acoustic-leaning modern production, clear diction`;
     const title = `Verso Único — ${input.orderId.slice(0, 8)}`;
 
     // callBackUrl é obrigatório pra API aceitar o request (erro 422 sem ele),
@@ -130,28 +142,30 @@ export const realMusicProvider: MusicProvider = {
     if (status !== "SUCCESS") return { status: "processing" };
 
     const sunoData: any[] = json?.data?.response?.sunoData ?? [];
-    if (sunoData.length < 2) {
-      console.error("[suno/kie.ai] SUCCESS mas sunoData com menos de 2 faixas", json);
+    if (sunoData.length < 1) {
+      console.error("[suno/kie.ai] SUCCESS mas sunoData vazio", json);
       return { status: "failed" };
     }
 
     const words = wordsFromLyric(lyricByTaskId.get(providerJobId) ?? "");
 
-    const tracks = await Promise.all(
-      sunoData.slice(0, 2).map(async (track, i) => {
-        const variant = i === 0 ? "take_1" : "take_2";
-        const durationSeconds = Number(track.duration) || Math.max(20, words.length * 0.4);
-        const path = `suno/${providerJobId}-${variant}.mp3`;
-        await downloadAndStore(track.audio_url, path);
-        return {
-          variant: variant as "take_1" | "take_2",
+    // Só a primeira faixa vira a música entregue (ver aviso no topo do
+    // arquivo) — a segunda que a API sempre devolve fica sem uso.
+    const track = sunoData[0];
+    const durationSeconds = Number(track.duration) || Math.max(20, words.length * 0.4);
+    const path = `suno/${providerJobId}-take_1.mp3`;
+    await downloadAndStore(track.audio_url, path);
+
+    return {
+      status: "ready",
+      tracks: [
+        {
+          variant: "take_1",
           audioUrl: path,
           durationSeconds,
           wordTimestamps: interpolateTimestamps(words, durationSeconds),
-        };
-      })
-    );
-
-    return { status: "ready", tracks };
+        },
+      ],
+    };
   },
 };

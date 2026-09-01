@@ -47,37 +47,40 @@ export const mockLyricsProvider: LyricsProvider = {
 
   async generateFullLyric(input) {
     await new Promise((r) => setTimeout(r, 900));
+    // O "detalhe marcante" vira um motivo que volta no verso 2 e na ponte —
+    // sem repetição, uma letra genérica de fato não amarra em nada.
     const detail = firstSentence(input.funDetail || "aquele jeito que só você tem");
     const storyLine = firstSentence(input.story || "uma história que vale a pena contar");
     return [
       "[Short Intro - máx 8s]",
-      `${input.nickname}, hoje é sobre você`,
+      `${input.nickname}, presta atenção nisso aqui`,
       "",
       "[Verse 1]",
       `${storyLine}`,
-      `e desde então ficou marcado em mim`,
-      `${input.relationship ? `você é meu(minha) ${input.relationship.toLowerCase()}` : "você é parte de quem eu sou"}`,
-      "e isso não vai mudar",
+      "e teve um instante que eu guardei sem querer",
+      `${detail}`,
+      "e desde ali eu não esqueci mais",
       "",
       "[Chorus]",
       input.chosenChorus,
       "",
       "[Verse 2]",
-      `${detail}`,
-      "é assim que eu sei que é você",
-      `mesmo longe, mesmo perto`,
-      "é assim que eu quero lembrar",
+      `Ainda penso ${detail.toLowerCase().startsWith("em") || detail.toLowerCase().startsWith("no") || detail.toLowerCase().startsWith("na") ? detail.toLowerCase() : `em ${detail.toLowerCase()}`}`,
+      `${input.relationship ? `porque foi assim que eu entendi` : "porque foi assim que eu aprendi"}`,
+      `${input.relationship ? `o que é ter meu(minha) ${input.relationship.toLowerCase()}` : "o que você é pra mim"}`,
+      "e isso não é pouca coisa não",
       "",
       "[Chorus]",
       input.chosenChorus,
       "",
       "[Bridge]",
-      `Se hoje é ${input.occasion?.toLowerCase() || "um dia especial"}, que seja claro:`,
-      `${input.nickname}, essa canção é sua`,
+      `Hoje é ${input.occasion?.toLowerCase() || "um dia diferente"}, mas a verdade é a mesma de sempre:`,
+      `continua sendo aquilo, sabe? ${detail.toLowerCase()}`,
+      "isso é o que eu não ia deixar passar em branco",
       "",
       "[Outro]",
-      `${input.nickname}, obrigado(a) por tudo`,
-      "essa é a nossa canção, pra sempre",
+      `${input.nickname}, essa canção é sua`,
+      "e vai ficar tocando muito depois de acabar",
     ].join("\n");
   },
 };

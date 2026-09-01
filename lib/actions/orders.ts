@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/server";
 import { getLyricsProvider } from "@/lib/ai/lyrics";
 import { getMusicProvider } from "@/lib/ai/music";
+import { getEmailProvider } from "@/lib/email/provider";
 import type { Order, OrderLyric, OrderPhoto, OrderStatus, OrderTrack, WizardAnswers } from "@/types";
 
 const PRICE_CENTS = Number(process.env.GIFT_PRICE_CENTS ?? 4990);
@@ -96,10 +97,11 @@ export async function startSongGeneration(buyerToken: string, finalLyricText: st
   });
 
   const providerName = process.env.MUSIC_PROVIDER || (process.env.MUSIC_API_KEY ? "real" : "mock");
-  await supabase.from("order_tracks").insert([
-    { order_id: order.id, provider: providerName, provider_job_id: providerJobId, variant: "take_1", status: "processing" },
-    { order_id: order.id, provider: providerName, provider_job_id: providerJobId, variant: "take_2", status: "processing" },
-  ]);
+  // Só 1 faixa por pedido — o produto entrega uma música (a do refrão
+  // escolhido), não uma escolha entre versões.
+  await supabase
+    .from("order_tracks")
+    .insert([{ order_id: order.id, provider: providerName, provider_job_id: providerJobId, variant: "take_1", status: "processing" }]);
 
   await supabase.from("orders").update({ status: "song_generating" }).eq("id", order.id);
   revalidatePath(`/pedido/${buyerToken}`);
@@ -121,6 +123,7 @@ export async function resolveTrackUrl(path: string | null): Promise<string | nul
 
 export interface GiftBundle {
   nickname: string;
+  relationship: string;
   occasion: string;
   genre: string;
   lyric: string;
@@ -139,7 +142,7 @@ export async function getGiftByToken(giftToken: string): Promise<GiftBundle | nu
   const supabase = createAdminClient();
   const { data: order } = await supabase
     .from("orders")
-    .select("id, recipient_nickname, occasion, genre, status")
+    .select("id, recipient_nickname, relationship, occasion, genre, status")
     .eq("gift_token", giftToken)
     .in("status", ["paid", "delivered"])
     .maybeSingle();
@@ -169,6 +172,7 @@ export async function getGiftByToken(giftToken: string): Promise<GiftBundle | nu
 
   return {
     nickname: order.recipient_nickname ?? "",
+    relationship: order.relationship ?? "",
     occasion: order.occasion ?? "",
     genre: order.genre ?? "",
     lyric: lyrics?.content ?? "",
@@ -176,6 +180,37 @@ export async function getGiftByToken(giftToken: string): Promise<GiftBundle | nu
     photos: ((photos ?? []) as { id: string; image_url: string }[]).map((p) => ({ id: p.id, imageUrl: p.image_url })),
     downloadUrl: resolvedTracks[0]?.audioUrl ?? null,
   };
+}
+
+/**
+ * Manda o link do presente pro e-mail que a pessoa digitar na própria
+ * página-presente — útil tanto pra quem comprou (backup, já existe um
+ * automático) quanto pra quem RECEBEU o presente e quer guardar o link no
+ * próprio e-mail, já que não tem acesso ao e-mail do comprador. Só precisa
+ * do gift_token (público) — não expõe nada que a página-presente já não
+ * mostre.
+ */
+export async function sendGiftLinkByEmail(giftToken: string, toEmail: string): Promise<{ ok: boolean; error?: string }> {
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(toEmail)) {
+    return { ok: false, error: "Digite um e-mail válido." };
+  }
+
+  const gift = await getGiftByToken(giftToken);
+  if (!gift) return { ok: false, error: "Presente não encontrado." };
+
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+  try {
+    await getEmailProvider().sendGiftReadyEmail({
+      toEmail,
+      buyerName: "",
+      recipientNickname: gift.nickname,
+      giftUrl: `${siteUrl}/g/${giftToken}`,
+    });
+    return { ok: true };
+  } catch (err) {
+    console.error("[email] falha ao reenviar link do presente pela página pública", { giftToken, err });
+    return { ok: false, error: "Não deu pra enviar agora. Tenta de novo em instantes." };
+  }
 }
 
 /** Chamado pelo polling do GenerationProgress. Consulta o provedor e avança o status quando a música fica pronta. */

@@ -5,7 +5,7 @@ import { Reveal } from "./Reveal";
 const INCLUDES = [
   "A letra, feita da sua história (grátis, antes de decidir)",
   "Um trecho de 40s cantado, pra ouvir antes de pagar",
-  "A música completa, cantada, em 2 versões diferentes",
+  "A música completa, com produção de estúdio",
   "A página-presente com fotos e a letra acendendo em karaokê",
   "Link e QR Code prontos pra enviar",
   "O MP3 pra baixar e guardar pra sempre",

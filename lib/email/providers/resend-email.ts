@@ -22,7 +22,7 @@ function buildHtml(input: { buyerName: string; recipientNickname: string; giftUr
       A música pra ${input.recipientNickname} está pronta
     </h1>
     <p style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#332A3D;margin:0 0 28px;">
-      Oi, ${input.buyerName}! Seu presente foi liberado — a página com a música completa,
+      ${input.buyerName ? `Oi, ${input.buyerName}! ` : ""}O presente foi liberado — a página com a música completa,
       a letra em karaokê e o QR Code pra compartilhar já está no ar.
     </p>
     <a href="${input.giftUrl}" style="display:inline-block;background:#FF7A54;color:#2B1810;font-family:Arial,Helvetica,sans-serif;font-weight:bold;font-size:15px;text-decoration:none;padding:14px 32px;border-radius:999px;">

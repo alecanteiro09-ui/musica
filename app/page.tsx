@@ -7,7 +7,7 @@ import { OccasionGrid } from "@/components/marketing/OccasionGrid";
 import { RelationshipGallery } from "@/components/marketing/RelationshipGallery";
 import { FullGiftFeature } from "@/components/marketing/FullGiftFeature";
 import { WhyItLasts } from "@/components/marketing/WhyItLasts";
-import { TwoVersions } from "@/components/marketing/TwoVersions";
+import { RealMusicSample } from "@/components/marketing/RealMusicSample";
 import { PricingIncludes } from "@/components/marketing/PricingIncludes";
 import { Faq } from "@/components/marketing/Faq";
 import { Reveal } from "@/components/marketing/Reveal";
@@ -115,7 +115,7 @@ export default function HomePage() {
       <FullGiftFeature />
       <WhyItLasts />
       <RelationshipGallery />
-      <TwoVersions />
+      <RealMusicSample />
       <PricingIncludes />
       <Faq />
 

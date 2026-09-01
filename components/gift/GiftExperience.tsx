@@ -1,16 +1,25 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Download, Play } from "lucide-react";
+import { Play } from "lucide-react";
 import { AudioPlayer } from "./AudioPlayer";
 import { KaraokeLyrics } from "./KaraokeLyrics";
 import { PhotoSlideshow } from "./PhotoSlideshow";
 import { QrCode } from "./QrCode";
+import { FloatingHearts } from "./FloatingHearts";
+import { ShareActions } from "./ShareActions";
 import type { GiftBundle } from "@/lib/actions/orders";
 
-export function GiftExperience({ gift, giftUrl }: { gift: GiftBundle; giftUrl: string }) {
-  const [activeVariant, setActiveVariant] = useState(gift.tracks[0]?.variant ?? "take_1");
-  const track = gift.tracks.find((t) => t.variant === activeVariant) ?? gift.tracks[0];
+export function GiftExperience({
+  gift,
+  giftUrl,
+  giftToken,
+}: {
+  gift: GiftBundle;
+  giftUrl: string;
+  giftToken: string;
+}) {
+  const track = gift.tracks[0];
 
   const audioRef = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
@@ -64,6 +73,8 @@ export function GiftExperience({ gift, giftUrl }: { gift: GiftBundle; giftUrl: s
         className="hidden"
       />
 
+      <FloatingHearts active={revealed && playing} />
+
       {!revealed && (
         <div
           className="relative flex min-h-[75vh] w-full flex-col items-center justify-center overflow-hidden px-6 text-center"
@@ -88,29 +99,19 @@ export function GiftExperience({ gift, giftUrl }: { gift: GiftBundle; giftUrl: s
       )}
 
       {revealed && (
-        <div className="mx-auto max-w-xl px-6 py-16" style={{ animation: "rise-in 0.7s ease both" }}>
+        <div className="relative z-10 mx-auto max-w-xl px-6 py-16" style={{ animation: "rise-in 0.7s ease both" }}>
           <p className="text-center text-sm uppercase tracking-wide text-accent">uma música para</p>
           <h1 className="mt-2 text-center font-display text-3xl italic text-ink">{gift.nickname}</h1>
 
           <div className="mt-6">
-            <PhotoSlideshow photos={gift.photos.map((p) => ({ id: p.id, imageUrl: p.imageUrl }))} />
+            <PhotoSlideshow
+              photos={gift.photos.map((p) => ({ id: p.id, imageUrl: p.imageUrl }))}
+              relationship={gift.relationship}
+            />
           </div>
 
           <div className="mt-6">
-            <AudioPlayer
-              playing={playing}
-              currentTime={currentTime}
-              duration={track.durationSeconds}
-              onToggle={toggle}
-              onSeek={seek}
-              variants={gift.tracks.map((t) => t.variant)}
-              activeVariant={activeVariant}
-              onChangeVariant={(v) => {
-                setActiveVariant(v);
-                setPlaying(false);
-                setCurrentTime(0);
-              }}
-            />
+            <AudioPlayer playing={playing} currentTime={currentTime} duration={track.durationSeconds} onToggle={toggle} onSeek={seek} />
           </div>
 
           <div className="mt-8">
@@ -121,15 +122,12 @@ export function GiftExperience({ gift, giftUrl }: { gift: GiftBundle; giftUrl: s
             />
           </div>
 
-          <div className="mt-12 flex flex-col items-center gap-4 border-t border-base-border pt-8">
-            <QrCode value={giftUrl} size={140} />
-            <a
-              href={track.audioUrl}
-              download
-              className="inline-flex items-center gap-2 rounded-full border border-base-border px-5 py-2 text-sm text-ink-muted hover:border-accent-dim"
-            >
-              <Download size={16} /> Baixar MP3
-            </a>
+          <div className="mt-12 flex flex-col items-center gap-6 border-t border-base-border pt-8">
+            <ShareActions audioUrl={track.audioUrl} giftToken={giftToken} nickname={gift.nickname} />
+            <div className="flex flex-col items-center gap-2">
+              <QrCode value={giftUrl} size={120} />
+              <p className="text-xs text-ink-muted">Aponte a câmera pra abrir esse presente de novo</p>
+            </div>
           </div>
 
           <p className="mt-10 text-center text-xs text-ink-muted">Feito com Verso Único</p>

@@ -22,5 +22,5 @@ export default async function GiftPage({ params }: { params: { token: string } }
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
   const giftUrl = `${siteUrl}/g/${params.token}`;
 
-  return <GiftExperience gift={gift} giftUrl={giftUrl} />;
+  return <GiftExperience gift={gift} giftUrl={giftUrl} giftToken={params.token} />;
 }

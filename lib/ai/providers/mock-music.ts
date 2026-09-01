@@ -51,12 +51,6 @@ export const mockMusicProvider: MusicProvider = {
           durationSeconds: MOCK_DURATION_SECONDS,
           wordTimestamps,
         },
-        {
-          variant: "take_2",
-          audioUrl: `/api/mock-audio/${providerJobId}-take2`,
-          durationSeconds: MOCK_DURATION_SECONDS,
-          wordTimestamps,
-        },
       ],
     };
   },

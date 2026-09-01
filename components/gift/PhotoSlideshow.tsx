@@ -2,8 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
+import { relationshipPhoto } from "@/lib/gift/relationshipPhoto";
 
-export function PhotoSlideshow({ photos }: { photos: { id: string; imageUrl: string }[] }) {
+export function PhotoSlideshow({
+  photos,
+  relationship,
+}: {
+  photos: { id: string; imageUrl: string }[];
+  relationship: string;
+}) {
   const [active, setActive] = useState(0);
 
   useEffect(() => {
@@ -13,7 +20,13 @@ export function PhotoSlideshow({ photos }: { photos: { id: string; imageUrl: str
   }, [photos.length]);
 
   if (photos.length === 0) {
-    return <div className="aspect-[4/5] rounded-2xl bg-base-soft" />;
+    return (
+      <div className="relative aspect-[4/5] overflow-hidden rounded-2xl bg-base-soft">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={relationshipPhoto(relationship)} alt="" className="h-full w-full object-cover grayscale" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/10 to-transparent" />
+      </div>
+    );
   }
 
   return (
