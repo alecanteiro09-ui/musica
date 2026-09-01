@@ -26,6 +26,9 @@ export function Header() {
             <Link href="/#como-funciona" className="transition-colors hover:text-ink">
               Como funciona
             </Link>
+            <Link href="/minhas-musicas" className="transition-colors hover:text-ink">
+              Minhas músicas
+            </Link>
             <Link
               href="/criar"
               className={`rounded-full bg-accent px-5 py-2.5 font-medium text-on-accent transition-all hover:scale-105 hover:bg-accent-dim active:scale-95 ${CTA_SHADOW}`}
@@ -61,6 +64,13 @@ export function Header() {
               className="block py-2 text-sm text-ink-muted"
             >
               Como funciona
+            </Link>
+            <Link
+              href="/minhas-musicas"
+              onClick={() => setOpen(false)}
+              className="block py-2 text-sm text-ink-muted"
+            >
+              Minhas músicas
             </Link>
           </nav>
         )}

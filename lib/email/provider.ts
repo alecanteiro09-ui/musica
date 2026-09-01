@@ -8,8 +8,14 @@ export interface GiftReadyEmailInput {
   giftUrl: string;
 }
 
+export interface LoginCodeEmailInput {
+  toEmail: string;
+  code: string;
+}
+
 export interface EmailProvider {
   sendGiftReadyEmail(input: GiftReadyEmailInput): Promise<void>;
+  sendLoginCode(input: LoginCodeEmailInput): Promise<void>;
 }
 
 /**

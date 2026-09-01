@@ -8,4 +8,10 @@ export const mockEmailProvider: EmailProvider = {
       giftUrl: input.giftUrl,
     });
   },
+  async sendLoginCode(input) {
+    console.log("[email/mock] código de verificação — e-mail simulado (sem envio real)", {
+      to: input.toEmail,
+      code: input.code,
+    });
+  },
 };
