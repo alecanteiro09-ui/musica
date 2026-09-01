@@ -8,10 +8,13 @@ export function KaraokeLyrics({
   lyric,
   wordTimestamps,
   currentTime,
+  dark = false,
 }: {
   lyric: string;
   wordTimestamps: WordTimestamp[] | null;
   currentTime: number;
+  /** Página-presente entregue é escura (foto de fundo) — troca a paleta de texto clara/escura pro claro/escuro certo em vez de herdar as cores pensadas pro fundo claro do resto do site. */
+  dark?: boolean;
 }) {
   const blocks = useMemo(() => parseTaggedLyric(lyric), [lyric]);
 
@@ -32,12 +35,18 @@ export function KaraokeLyrics({
       {blocks.map((block, bi) => (
         <div key={bi}>
           {block.lines.map((line, li) => (
-            <p key={li} className="text-lg leading-relaxed text-ink md:text-xl">
+            <p key={li} className={cn("text-lg leading-relaxed md:text-xl", dark ? "text-[#FBF7FA]" : "text-ink")}>
               {line.split(/\s+/).map((word, wi) => {
                 globalWordIndex += 1;
                 const isActive = wordTimestamps ? globalWordIndex === activeIndex : false;
                 return (
-                  <span key={wi} className={cn("transition-colors", isActive ? "text-accent" : "text-ink-muted")}>
+                  <span
+                    key={wi}
+                    className={cn(
+                      "transition-colors",
+                      isActive ? "text-accent" : dark ? "text-[#FBF7FA]/45" : "text-ink-muted"
+                    )}
+                  >
                     {word}{" "}
                   </span>
                 );

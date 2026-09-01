@@ -67,7 +67,7 @@ export function ShareActions({ audioUrl, giftToken, nickname }: { audioUrl: stri
         <button
           type="button"
           onClick={() => setEmailOpen((v) => !v)}
-          className="flex flex-1 items-center justify-center gap-2 rounded-full border border-base-border px-5 py-3 text-sm text-ink-muted transition-colors hover:border-accent-dim"
+          className="flex flex-1 items-center justify-center gap-2 rounded-full border border-white/20 px-5 py-3 text-sm text-[#FBF7FA]/80 transition-colors hover:border-white/40"
         >
           <Mail size={16} /> Enviar por e-mail
         </button>
@@ -76,7 +76,7 @@ export function ShareActions({ audioUrl, giftToken, nickname }: { audioUrl: stri
       {emailOpen && (
         <form onSubmit={handleSendEmail} className="mt-3 flex flex-col gap-2" style={{ animation: "rise-in 0.3s ease both" }}>
           {emailState === "sent" ? (
-            <p className="flex items-center gap-2 rounded-xl bg-success/10 px-4 py-3 text-sm text-success">
+            <p className="flex items-center gap-2 rounded-xl bg-success/15 px-4 py-3 text-sm text-success">
               <Check size={16} /> Link enviado! Confere a caixa de entrada de {email}.
             </p>
           ) : (
@@ -91,18 +91,18 @@ export function ShareActions({ audioUrl, giftToken, nickname }: { audioUrl: stri
                     setEmailState("idle");
                   }}
                   placeholder="seu@email.com"
-                  className="flex-1 rounded-full border border-base-border bg-base px-4 py-2 text-sm text-ink outline-none focus:border-accent-dim"
+                  className="flex-1 rounded-full border border-white/20 bg-black/25 px-4 py-2 text-sm text-[#FBF7FA] placeholder:text-[#FBF7FA]/40 outline-none focus:border-accent-dim"
                 />
                 <button
                   type="submit"
                   disabled={isPending}
-                  className="flex items-center justify-center gap-1 rounded-full bg-ink px-4 py-2 text-sm font-medium text-base transition-transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60"
+                  className="flex items-center justify-center gap-1 rounded-full bg-accent px-4 py-2 text-sm font-medium text-on-accent transition-transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60"
                 >
                   {isPending ? <Loader2 size={14} className="animate-spin" /> : <Share2 size={14} />}
                   Enviar
                 </button>
               </div>
-              {emailState === "error" && <p className="text-xs text-red-500">{errorMsg}</p>}
+              {emailState === "error" && <p className="text-xs text-red-400">{errorMsg}</p>}
             </>
           )}
         </form>

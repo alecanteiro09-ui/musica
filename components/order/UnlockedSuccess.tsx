@@ -76,8 +76,11 @@ export function UnlockedSuccess({
       </a>
 
       <div className="mt-12 text-left">
-        <h2 className="font-display text-lg italic text-ink">Fotos de vocês (opcional)</h2>
-        <p className="mt-1 text-xs text-ink-muted">Até 12 fotos — elas passam junto com a música na página do presente.</p>
+        <h2 className="font-display text-lg italic text-ink">Uma foto de fundo (opcional, mas fica lindo)</h2>
+        <p className="mt-1 text-xs text-ink-muted">
+          Até 12 fotos — elas viram o fundo da página do presente, atrás da música e da letra. Sem foto nenhuma, a
+          gente usa uma imagem combinando com o tipo de relação.
+        </p>
 
         <div className="mt-4 grid grid-cols-4 gap-2">
           {photos.map((p) => (

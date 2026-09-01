@@ -22,7 +22,7 @@ export function AudioPlayer({
   onSeek: (time: number) => void;
 }) {
   return (
-    <div className="rounded-xl border border-base-border bg-base-soft/80 p-4 backdrop-blur">
+    <div className="rounded-xl border border-white/15 bg-black/25 p-4 backdrop-blur-md">
       <div className="flex items-center gap-4">
         <button
           type="button"
@@ -42,7 +42,7 @@ export function AudioPlayer({
             onChange={(e) => onSeek(Number(e.target.value))}
             className="w-full accent-accent"
           />
-          <div className="mt-1 flex justify-between text-xs text-ink-muted">
+          <div className="mt-1 flex justify-between text-xs text-[#FBF7FA]/60">
             <span>{formatTime(currentTime)}</span>
             <span>{formatTime(duration)}</span>
           </div>

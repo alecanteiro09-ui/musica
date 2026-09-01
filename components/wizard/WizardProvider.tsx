@@ -24,6 +24,7 @@ interface WizardContextValue {
   step: number;
   setStep: (step: number) => void;
   reset: () => void;
+  markSubmitted: () => void;
   hydrated: boolean;
 }
 
@@ -39,8 +40,17 @@ export function WizardProvider({ children }: { children: ReactNode }) {
       const raw = window.localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
-        if (parsed.answers) setAnswers({ ...EMPTY_ANSWERS, ...parsed.answers });
-        if (typeof parsed.step === "number") setStep(parsed.step);
+        // Um wizard já enviado (pedido criado) nunca deve voltar sozinho — sem
+        // isso, quem termina um pedido e volta em /criar pra fazer OUTRO cai
+        // direto na tela de confirmação do pedido anterior, com tudo
+        // preenchido, e parece que não dá pra criar um novo (bug reportado
+        // pelo usuário). Descarta o rascunho e começa do zero nesse caso.
+        if (!parsed.submitted && parsed.answers) {
+          setAnswers({ ...EMPTY_ANSWERS, ...parsed.answers });
+          if (typeof parsed.step === "number") setStep(parsed.step);
+        } else if (parsed.submitted) {
+          window.localStorage.removeItem(STORAGE_KEY);
+        }
       }
     } catch {
       // ignora storage corrompido
@@ -64,8 +74,16 @@ export function WizardProvider({ children }: { children: ReactNode }) {
     window.localStorage.removeItem(STORAGE_KEY);
   }
 
+  // Chamado no instante do envio, antes da Server Action redirecionar — o
+  // redirect() joga a navegação pra /pedido/[token] sem deixar código do
+  // cliente rodar depois do await, então é aqui (não depois) que dá pra
+  // marcar que esse rascunho já virou pedido.
+  function markSubmitted() {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ answers, step, submitted: true }));
+  }
+
   return (
-    <WizardContext.Provider value={{ answers, setAnswer, step, setStep, reset, hydrated }}>
+    <WizardContext.Provider value={{ answers, setAnswer, step, setStep, reset, markSubmitted, hydrated }}>
       {children}
     </WizardContext.Provider>
   );

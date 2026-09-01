@@ -51,7 +51,7 @@ const VOICES = [
 const STEP_COUNT = 10;
 
 export function Wizard() {
-  const { answers, setAnswer, step, setStep, hydrated } = useWizard();
+  const { answers, setAnswer, step, setStep, reset, markSubmitted, hydrated } = useWizard();
   const [isPending, startTransition] = useTransition();
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -69,6 +69,7 @@ export function Wizard() {
   function submit() {
     startTransition(async () => {
       try {
+        markSubmitted();
         await createDraftOrder(answers);
       } catch (err) {
         setFormError(err instanceof Error ? err.message : "Não deu pra criar sua música agora. Tente de novo.");
@@ -109,6 +110,15 @@ export function Wizard() {
           style={{ width: `${((step + 1) / STEP_COUNT) * 100}%` }}
         />
       </div>
+
+      {step === 0 && (answers.nickname || answers.relationship) && (
+        <p className="mb-6 text-center text-xs text-ink-muted">
+          Continuando de onde parou —{" "}
+          <button type="button" onClick={reset} className="underline hover:text-ink">
+            começar um pedido novo
+          </button>
+        </p>
+      )}
 
       {step === 0 && (
         <Step title="Pra quem é esse presente?">
