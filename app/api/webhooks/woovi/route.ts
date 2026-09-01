@@ -14,8 +14,13 @@ import { verifyWooviSignature } from "@/lib/payments/verify-woovi-signature";
  * req.json() direto, senão perde os bytes exatos que foram assinados).
  */
 export async function POST(req: NextRequest) {
-  const rawBody = await req.text().catch(() => null);
-  if (!rawBody) return NextResponse.json({ ok: false }, { status: 400 });
+  const rawBody = (await req.text().catch(() => "")) ?? "";
+
+  // A Woovi manda um ping vazio (sem corpo, sem assinatura) só pra testar se
+  // a URL responde, no momento em que o webhook é cadastrado no painel deles
+  // — não é um evento de verdade, então aceita sem exigir nada. Rejeitar
+  // isso com erro impedia até de CADASTRAR o webhook (confirmado testando).
+  if (!rawBody.trim()) return NextResponse.json({ ok: true });
 
   const signature = req.headers.get("x-webhook-signature");
   if (!verifyWooviSignature(rawBody, signature)) {
@@ -32,7 +37,9 @@ export async function POST(req: NextRequest) {
 
   const correlationId: string | undefined =
     (payload as any)?.charge?.correlationID ?? (payload as any)?.correlationID;
-  if (!correlationId) return NextResponse.json({ ok: false, reason: "missing correlationID" }, { status: 400 });
+  // Evento assinado mas sem correlationID (ex: outro tipo de evento que não
+  // pedimos) — não é erro nosso, só não tem o que fazer com ele.
+  if (!correlationId) return NextResponse.json({ ok: true });
 
   try {
     await confirmPixPayment(correlationId, payload);
