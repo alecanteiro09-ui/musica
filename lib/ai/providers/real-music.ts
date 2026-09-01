@@ -63,7 +63,7 @@ function interpolateTimestamps(words: string[], durationSeconds: number): WordTi
   return words.map((word, i) => ({ word, start: +(i * step).toFixed(2), end: +((i + 1) * step).toFixed(2) }));
 }
 
-async function composeOneTake(input: GenerateSongInput, seed: number): Promise<Buffer> {
+async function composeOneTake(input: GenerateSongInput): Promise<Buffer> {
   const apiKey = process.env.MUSIC_API_KEY;
   if (!apiKey) throw new Error("MUSIC_API_KEY não configurado.");
 
@@ -71,6 +71,8 @@ async function composeOneTake(input: GenerateSongInput, seed: number): Promise<B
     input.voicePreference
   )}, cantando exatamente esta letra (respeite as seções indicadas entre colchetes):\n\n${input.lyric}`;
 
+  // "seed" não pode ser enviado junto com "prompt" (a API rejeita com 422) —
+  // as duas chamadas (take_1/take_2) já saem naturalmente diferentes sem seed.
   const res = await fetch(ELEVEN_MUSIC_ENDPOINT, {
     method: "POST",
     headers: {
@@ -80,7 +82,6 @@ async function composeOneTake(input: GenerateSongInput, seed: number): Promise<B
     body: JSON.stringify({
       prompt,
       music_length_ms: TARGET_DURATION_MS,
-      seed,
     }),
   });
 
@@ -101,10 +102,7 @@ export const realMusicProvider: MusicProvider = {
     const durationSeconds = TARGET_DURATION_MS / 1000;
 
     try {
-      const [take1, take2] = await Promise.all([
-        composeOneTake(input, 1),
-        composeOneTake(input, 2),
-      ]);
+      const [take1, take2] = await Promise.all([composeOneTake(input), composeOneTake(input)]);
 
       const tracks = await Promise.all(
         [take1, take2].map(async (audio, i) => {
