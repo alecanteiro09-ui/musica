@@ -1,5 +1,5 @@
 import QRCode from "qrcode";
-import type { CreatePixChargeInput, PaymentProvider, PixCharge } from "./provider";
+import type { CardCharge, CreateCardChargeInput, CreatePixChargeInput, PaymentProvider, PixCharge } from "./provider";
 import { confirmPixPayment } from "./confirm";
 
 const MOCK_CONFIRM_AFTER_MS = 5000;
@@ -28,6 +28,20 @@ export const mockPaymentProvider: PaymentProvider = {
       chargeId: `mock_${input.correlationId}`,
       brCode,
       qrCodeImageUrl,
+    };
+  },
+
+  async createCardCharge(input: CreateCardChargeInput): Promise<CardCharge> {
+    setTimeout(() => {
+      confirmPixPayment(input.correlationId, { mock: true, method: "card", confirmedAt: new Date().toISOString() }).catch((err) =>
+        console.error("[mock-payment] falha ao auto-confirmar cartão", err)
+      );
+    }, MOCK_CONFIRM_AFTER_MS);
+
+    const html = `<html><body style="font-family:sans-serif;padding:40px;text-align:center"><h1>Checkout de cartão simulado</h1><p>Nenhuma cobrança real — confirma sozinho em alguns segundos.</p></body></html>`;
+    return {
+      chargeId: `mock_${input.correlationId}`,
+      paymentLinkUrl: `data:text/html,${encodeURIComponent(html)}`,
     };
   },
 };

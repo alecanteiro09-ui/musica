@@ -23,8 +23,34 @@ export interface PixCharge {
   qrCodeImageUrl: string;
 }
 
+export interface CardAddress {
+  zipcode: string;
+  street: string;
+  number: string;
+  neighborhood: string;
+  city: string;
+  state: string;
+  complement?: string;
+}
+
+export interface CreateCardChargeInput {
+  orderId: string;
+  correlationId: string;
+  amountCents: number;
+  comment: string;
+  customer: PixCustomer & { taxID: string; phone: string; address: CardAddress };
+}
+
+export interface CardCharge {
+  chargeId: string;
+  /** Checkout hospedado pela Woovi — o cliente digita o cartão lá, nunca no nosso site. */
+  paymentLinkUrl: string;
+}
+
 export interface PaymentProvider {
   createPixCharge(input: CreatePixChargeInput): Promise<PixCharge>;
+  /** Pagamento com cartão via Woovi Parcelado (type "PIX_CREDIT") — exige mais dados do cliente que o Pix puro. */
+  createCardCharge(input: CreateCardChargeInput): Promise<CardCharge>;
 }
 
 /**

@@ -8,6 +8,7 @@ import { FRAME_SIZES, isFrameSizeKey, type FrameSizeKey } from "@/lib/frameSizes
 import { updateBuyerEmail, setPhotoPdfSelection, clearPhotoPdfSelection } from "@/lib/actions/orders";
 import { uploadOrderPhoto } from "@/lib/actions/photos";
 import { PixCharge } from "./PixCharge";
+import { CardCheckout } from "./CardCheckout";
 
 const INCLUDES = [
   "A música completa, do jeito que você escreveu",
@@ -35,7 +36,7 @@ export function CheckoutModal({
   initialFrameSize: string | null;
   onClose: () => void;
 }) {
-  const [view, setView] = useState<"form" | "paying">("form");
+  const [view, setView] = useState<"form" | "paying" | "card">("form");
   const [wantsQuadro, setWantsQuadro] = useState(initialWantsPhotoPdf);
   const [frameSize, setFrameSize] = useState<FrameSizeKey>(
     initialFrameSize && isFrameSizeKey(initialFrameSize) ? initialFrameSize : "20x30"
@@ -59,36 +60,50 @@ export function CheckoutModal({
     setPhotoPreview(URL.createObjectURL(file));
   }
 
-  async function handleGeneratePix() {
-    setError(null);
-    // Só precisa de uma foto nova se ainda não tinha nenhuma reservada (ex:
-    // marcou o quadro numa visita anterior, saiu sem pagar, voltou agora).
+  /** Aplica e-mail/quadro no pedido (preço já sai correto pra qualquer método de pagamento em seguida). */
+  async function applySelections() {
     if (wantsQuadro && !photoFile && !initialWantsPhotoPdf) {
-      setError("Escolhe uma foto pra gente montar o quadro.");
-      return;
+      throw new Error("Escolhe uma foto pra gente montar o quadro.");
     }
 
+    if (email !== buyerEmail) {
+      const result = await updateBuyerEmail(buyerToken, email);
+      if (!result.ok) throw new Error(result.error || "E-mail inválido.");
+    }
+
+    if (wantsQuadro && photoFile) {
+      const formData = new FormData();
+      formData.set("photo", photoFile);
+      const upload = await uploadOrderPhoto(buyerToken, formData);
+      if (!upload.ok) throw new Error(upload.error);
+      const selection = await setPhotoPdfSelection(buyerToken, frameSize, upload.imageUrl);
+      if (!selection.ok) throw new Error(selection.error || "Não deu pra reservar a foto do quadro.");
+    } else if (!wantsQuadro && initialWantsPhotoPdf) {
+      await clearPhotoPdfSelection(buyerToken);
+    }
+  }
+
+  async function handleGeneratePix() {
+    setError(null);
     setSubmitting(true);
     try {
-      if (email !== buyerEmail) {
-        const result = await updateBuyerEmail(buyerToken, email);
-        if (!result.ok) throw new Error(result.error || "E-mail inválido.");
-      }
-
-      if (wantsQuadro && photoFile) {
-        const formData = new FormData();
-        formData.set("photo", photoFile);
-        const upload = await uploadOrderPhoto(buyerToken, formData);
-        if (!upload.ok) throw new Error(upload.error);
-        const selection = await setPhotoPdfSelection(buyerToken, frameSize, upload.imageUrl);
-        if (!selection.ok) throw new Error(selection.error || "Não deu pra reservar a foto do quadro.");
-      } else if (!wantsQuadro && initialWantsPhotoPdf) {
-        await clearPhotoPdfSelection(buyerToken);
-      }
-
+      await applySelections();
       setView("paying");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Não deu pra gerar o Pix agora.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleWantCard() {
+    setError(null);
+    setSubmitting(true);
+    try {
+      await applySelections();
+      setView("card");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Não deu pra continuar agora.");
     } finally {
       setSubmitting(false);
     }
@@ -211,8 +226,19 @@ export function CheckoutModal({
               Gerar meu Pix
             </button>
 
+            <button
+              type="button"
+              onClick={handleWantCard}
+              disabled={submitting}
+              className="mt-3 w-full text-center text-sm text-ink-muted underline decoration-dotted hover:text-ink disabled:opacity-60"
+            >
+              Prefere cartão, ou quer parcelar?
+            </button>
+
             <p className="mt-3 text-center text-xs text-ink-muted">Garantia de 7 dias · reembolso sem perguntas</p>
           </>
+        ) : view === "card" ? (
+          <CardCheckout buyerToken={buyerToken} priceCents={finalPriceCents} />
         ) : (
           <PixCharge buyerToken={buyerToken} priceCents={finalPriceCents} />
         )}
