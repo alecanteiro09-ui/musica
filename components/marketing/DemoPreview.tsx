@@ -17,9 +17,19 @@ const DEMO_LYRIC = [
   "essa é a parte que eu quero guardar",
 ].join("\n");
 
-const DEMO_DURATION = 18;
+// A faixa real (public/audio/landing-demo-take1.mp3) não vem com timing
+// palavra-a-palavra do provedor — assim como pedidos reais sem alinhamento
+// (ver aviso em real-music.ts), é interpolado uniformemente. O erro visível
+// antes era outro: quando a letra foi de 2 pra 6 linhas, a duração só
+// subiu de 13s pra 18s (2,25s/linha — rápido demais pra qualquer música
+// pop de verdade), fazendo o karaokê disparar bem à frente do que estava
+// sendo cantado. Ajustado pra um ritmo plausível (verso mais falado,
+// refrão mais espaçado) com uma pequena folga inicial pro instrumental.
+const INTRO_OFFSET = 2;
+const SUNG_DURATION = 28;
+const DEMO_DURATION = INTRO_OFFSET + SUNG_DURATION;
 
-function buildTimestamps(lyric: string, duration: number): WordTimestamp[] {
+function buildTimestamps(lyric: string, offset: number, duration: number): WordTimestamp[] {
   const words = lyric
     .split("\n")
     .filter((l) => !l.trim().startsWith("["))
@@ -27,10 +37,14 @@ function buildTimestamps(lyric: string, duration: number): WordTimestamp[] {
     .split(/\s+/)
     .filter(Boolean);
   const step = duration / words.length;
-  return words.map((word, i) => ({ word, start: +(i * step).toFixed(2), end: +((i + 1) * step).toFixed(2) }));
+  return words.map((word, i) => ({
+    word,
+    start: +(offset + i * step).toFixed(2),
+    end: +(offset + (i + 1) * step).toFixed(2),
+  }));
 }
 
-const TIMESTAMPS = buildTimestamps(DEMO_LYRIC, DEMO_DURATION);
+const TIMESTAMPS = buildTimestamps(DEMO_LYRIC, INTRO_OFFSET, SUNG_DURATION);
 
 const SPARKLES = [
   { left: "12%", top: "22%", size: 12, delay: "0s", duration: "2.6s" },
