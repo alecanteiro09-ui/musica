@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/server";
+import { getEmailProvider } from "@/lib/email/provider";
 
 /**
  * Confirma um pagamento Pix e libera o pedido. Chamado tanto pelo webhook
@@ -45,5 +46,36 @@ export async function confirmPixPayment(correlationId: string, rawPayload: unkno
     .eq("id", payment.order_id)
     .eq("status", "paid");
 
+  await sendGiftReadyEmailSafely(payment.order_id);
+
   return { ok: true, alreadyConfirmed: false };
+}
+
+/**
+ * E-mail é só um backup — a entrega principal já acontece na hora, na tela
+ * (UnlockedSuccess). Se o envio falhar (chave inválida, provedor fora do
+ * ar), o pagamento já foi confirmado e o pedido já foi liberado; não faz
+ * sentido derrubar a confirmação por causa disso, só logamos o erro.
+ */
+async function sendGiftReadyEmailSafely(orderId: string) {
+  try {
+    const supabase = createAdminClient();
+    const { data: order } = await supabase
+      .from("orders")
+      .select("buyer_email, buyer_name, recipient_nickname, gift_token")
+      .eq("id", orderId)
+      .single();
+
+    if (!order?.buyer_email) return;
+
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+    await getEmailProvider().sendGiftReadyEmail({
+      toEmail: order.buyer_email,
+      buyerName: order.buyer_name || "",
+      recipientNickname: order.recipient_nickname || "",
+      giftUrl: `${siteUrl}/g/${order.gift_token}`,
+    });
+  } catch (err) {
+    console.error("[email] falha ao enviar e-mail de presente liberado", { orderId, err });
+  }
 }

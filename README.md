@@ -16,6 +16,7 @@ Contar a história → Letra grátis (2 refrões) → Editar letra → Gravar m�
 - **Anthropic (Claude)** para geração de letra — opcional, cai em modo simulado sem chave
 - **Suno via Kie.ai** para geração da música cantada — opcional, cai em modo simulado sem chave
 - **Woovi** para cobrança Pix — opcional, cai em modo simulado sem chave
+- **Resend** para o e-mail de backup do presente liberado — opcional, cai em modo simulado (só loga) sem chave
 - Lucide Icons, `qrcode`
 
 ## Rodando localmente sem nenhuma chave de API
@@ -77,6 +78,14 @@ nenhum call site, só as env vars:
   aponte o webhook de confirmação pra `/api/webhooks/woovi`. Confirme na documentação
   atual da Woovi o mecanismo de autenticação do webhook antes de ir pra produção — o
   código em `app/api/webhooks/woovi/route.ts` tem um TODO explícito nesse ponto.
+- **E-mail**: crie conta em [resend.com](https://resend.com), verifique um domínio
+  (Domains → Add Domain, adicionar os registros DNS que eles pedem) e defina
+  `RESEND_API_KEY` e `EMAIL_FROM` (ex.: `Verso Único <presentes@seudominio.com>`). Sem
+  domínio verificado, a conta só consegue mandar pro e-mail do próprio dono — dá pra
+  testar assim, mas não serve pra produção. Esse e-mail é só um **backup**: a entrega
+  principal já acontece na hora, na tela (`UnlockedSuccess`), pra quem fechar a aba antes
+  de salvar o link (`lib/payments/confirm.ts` dispara o envio depois de marcar o pedido
+  como `delivered`, sem derrubar a confirmação do pagamento se o envio falhar).
 
 ## Estrutura do projeto
 
@@ -96,6 +105,7 @@ nenhum call site, só as env vars:
 /lib
   supabase/                clientes browser/server/admin
   ai/                      abstrações de letra e música (mock + real)
+  email/                   abstração de e-mail (mock + Resend)
   payments/                abstração de pagamento (mock + Woovi) + confirmação idempotente
   actions/                 Server Actions (orders, lyrics, payments, photos)
 /supabase/migrations/0001_init.sql   schema completo + RLS + buckets
