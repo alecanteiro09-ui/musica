@@ -13,9 +13,11 @@ const DEMO_LYRIC = [
   "[Chorus]",
   "Essa aqui é sua, é nossa",
   "do jeito que só a gente sabe contar",
+  "por mais que o tempo passe rápido",
+  "essa é a parte que eu quero guardar",
 ].join("\n");
 
-const DEMO_DURATION = 13;
+const DEMO_DURATION = 18;
 
 function buildTimestamps(lyric: string, duration: number): WordTimestamp[] {
   const words = lyric
@@ -31,11 +33,12 @@ function buildTimestamps(lyric: string, duration: number): WordTimestamp[] {
 const TIMESTAMPS = buildTimestamps(DEMO_LYRIC, DEMO_DURATION);
 
 /**
- * Demo ao vivo pra landing page: toca um trecho (áudio simulado, ver
- * /api/mock-audio) com a letra acendendo em karaokê — a mesma experiência
- * de quem recebe um presente de verdade, só que com um exemplo genérico.
- * Substitui um vídeo/gif de reação real, que exigiria licenciar imagem de
- * pessoas de verdade.
+ * Demo ao vivo pra landing page: toca um trecho de uma faixa real, gerada
+ * pelo Verso Único (Suno via Kie.ai — ver lib/ai/providers/real-music.ts),
+ * salva em public/audio/landing-demo-take1.mp3. A letra acendendo em
+ * karaokê é a mesma experiência de quem recebe um presente de verdade, só
+ * que com um exemplo genérico. Substitui um vídeo/gif de reação real, que
+ * exigiria licenciar imagem de pessoas de verdade.
  */
 export function DemoPreview() {
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -94,7 +97,7 @@ export function DemoPreview() {
       </div>
       <audio
         ref={audioRef}
-        src="/api/mock-audio/landing-demo"
+        src="/audio/landing-demo-take1.mp3"
         onPlay={() => setPlaying(true)}
         onPause={() => setPlaying(false)}
         onEnded={() => setPlaying(false)}

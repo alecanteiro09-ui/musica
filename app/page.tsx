@@ -1,6 +1,13 @@
 import Link from "next/link";
 import { Sparkles, Ear, Send } from "lucide-react";
 import { DemoPreview } from "@/components/marketing/DemoPreview";
+import { StatsStrip } from "@/components/marketing/StatsStrip";
+import { OccasionGrid } from "@/components/marketing/OccasionGrid";
+import { FullGiftFeature } from "@/components/marketing/FullGiftFeature";
+import { WhyItLasts } from "@/components/marketing/WhyItLasts";
+import { TwoVersions } from "@/components/marketing/TwoVersions";
+import { PricingIncludes } from "@/components/marketing/PricingIncludes";
+import { Faq } from "@/components/marketing/Faq";
 import { Reveal } from "@/components/marketing/Reveal";
 
 const STEPS = [
@@ -21,16 +28,10 @@ const STEPS = [
   },
 ];
 
-const REASONS = [
-  { title: "Feita da sua história", body: "Cada verso vem de um detalhe que você contou — não existe outra igual no mundo." },
-  { title: "Você ouve antes de decidir", body: "Letra completa e um trecho cantado, grátis, antes de pagar qualquer coisa." },
-  { title: "Chega como presente de verdade", body: "Um link com a música tocando, a letra acendendo e as fotos de vocês — não um arquivo perdido no chat." },
-];
-
 export default function HomePage() {
   return (
     <div className="overflow-x-clip">
-      <section className="relative mx-auto grid max-w-5xl gap-12 px-6 pb-20 pt-16 md:grid-cols-[1.1fr_0.9fr] md:items-center md:pt-24">
+      <section className="relative mx-auto grid max-w-5xl gap-12 px-6 pb-14 pt-16 md:grid-cols-[1.1fr_0.9fr] md:items-center md:pt-24">
         <div
           className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-accent-soft opacity-70 blur-3xl"
           aria-hidden
@@ -41,7 +42,10 @@ export default function HomePage() {
         />
 
         <div className="relative">
-          <p className="text-sm font-medium uppercase tracking-wide text-accent">presente que se ouve</p>
+          <span className="inline-flex items-center rounded-full border border-base-border bg-base-soft px-3 py-1 text-xs text-ink-muted">
+            🎁 pra mãe, pai, namorado(a), avó ou em memória
+          </span>
+          <p className="mt-4 text-sm font-medium uppercase tracking-wide text-accent">presente que se ouve</p>
           <h1 className="mt-4 max-w-xl font-display text-4xl italic leading-tight text-ink md:text-6xl">
             Sua história, em canção.
           </h1>
@@ -65,8 +69,10 @@ export default function HomePage() {
         </div>
       </section>
 
+      <StatsStrip />
+
       <Reveal>
-        <section className="border-y border-base-border bg-base-soft py-20">
+        <section className="border-b border-base-border py-20">
           <div className="mx-auto max-w-3xl px-6 text-center">
             <h2 className="font-display text-2xl italic text-ink md:text-3xl">
               Todo ano, a mesma pergunta: o que dar de presente?
@@ -80,14 +86,16 @@ export default function HomePage() {
         </section>
       </Reveal>
 
+      <OccasionGrid />
+
       <Reveal>
-        <section id="como-funciona" className="py-20">
+        <section id="como-funciona" className="border-y border-base-border bg-base-soft py-20">
           <div className="mx-auto max-w-5xl px-6">
             <h2 className="text-center font-display text-3xl italic text-ink">Como funciona</h2>
             <div className="mt-10 grid gap-8 md:grid-cols-3">
               {STEPS.map((step, i) => (
                 <Reveal key={step.title} delay={i * 120}>
-                  <div className="group rounded-2xl border border-base-border bg-base-soft p-6 transition-all hover:-translate-y-1 hover:shadow-card">
+                  <div className="group rounded-2xl border border-base-border bg-base p-6 transition-all hover:-translate-y-1 hover:shadow-card">
                     <span className="flex h-10 w-10 items-center justify-center rounded-full bg-accent-soft text-accent transition-transform group-hover:scale-110">
                       <step.icon size={18} />
                     </span>
@@ -101,22 +109,11 @@ export default function HomePage() {
         </section>
       </Reveal>
 
-      <Reveal>
-        <section className="bg-base-soft py-20">
-          <div className="mx-auto max-w-5xl px-6">
-            <div className="grid gap-6 md:grid-cols-3">
-              {REASONS.map((r, i) => (
-                <Reveal key={r.title} delay={i * 120}>
-                  <div className="h-full rounded-2xl border border-base-border bg-base p-6 shadow-card transition-transform hover:-translate-y-1">
-                    <h3 className="text-lg font-semibold text-ink">{r.title}</h3>
-                    <p className="mt-2 text-sm text-ink-muted">{r.body}</p>
-                  </div>
-                </Reveal>
-              ))}
-            </div>
-          </div>
-        </section>
-      </Reveal>
+      <FullGiftFeature />
+      <WhyItLasts />
+      <TwoVersions />
+      <PricingIncludes />
+      <Faq />
 
       <Reveal>
         <section className="py-20">
