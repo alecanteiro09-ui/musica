@@ -14,4 +14,11 @@ export const mockEmailProvider: EmailProvider = {
       code: input.code,
     });
   },
+  async sendPhotoPdfReadyEmail(input) {
+    console.log("[email/mock] foto de quadro pronta — e-mail simulado (sem envio real)", {
+      to: input.toEmail,
+      recipient: input.recipientNickname,
+      pdfUrl: input.pdfUrl,
+    });
+  },
 };

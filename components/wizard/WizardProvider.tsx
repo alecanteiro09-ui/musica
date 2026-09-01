@@ -16,6 +16,7 @@ const EMPTY_ANSWERS: WizardAnswers = {
   chorusHint: "",
   buyerName: "",
   buyerEmail: "",
+  wantsCustomVoice: false,
 };
 
 interface WizardContextValue {

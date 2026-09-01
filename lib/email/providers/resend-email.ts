@@ -56,6 +56,28 @@ function buildLoginCodeHtml(input: { code: string }): string {
 </div>`.trim();
 }
 
+function buildPhotoPdfHtml(input: { buyerName: string; recipientNickname: string; pdfUrl: string }): string {
+  return `
+<div style="background:#FBF7FA;padding:40px 16px;font-family:Georgia,'Times New Roman',serif;">
+  <div style="max-width:480px;margin:0 auto;background:#ffffff;border-radius:16px;padding:40px 32px;text-align:center;">
+    <p style="font-family:Arial,Helvetica,sans-serif;font-size:13px;letter-spacing:0.08em;text-transform:uppercase;color:#FF7A54;margin:0 0 16px;">Verso Único</p>
+    <h1 style="font-size:26px;line-height:1.3;color:#332A3D;margin:0 0 12px;font-weight:normal;font-style:italic;">
+      Sua foto de quadro está pronta
+    </h1>
+    <p style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#332A3D;margin:0 0 28px;">
+      ${input.buyerName ? `Oi, ${input.buyerName}! ` : ""}A foto de ${input.recipientNickname || "vocês"}, tratada e no tamanho certo
+      pra imprimir e emoldurar, já está pronta em PDF.
+    </p>
+    <a href="${input.pdfUrl}" style="display:inline-block;background:#FF7A54;color:#2B1810;font-family:Arial,Helvetica,sans-serif;font-weight:bold;font-size:15px;text-decoration:none;padding:14px 32px;border-radius:999px;">
+      Baixar o PDF
+    </a>
+    <p style="font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#9b8fa3;margin:28px 0 0;word-break:break-all;">
+      Ou copie o link: ${input.pdfUrl}
+    </p>
+  </div>
+</div>`.trim();
+}
+
 export const resendEmailProvider: EmailProvider = {
   async sendGiftReadyEmail(input) {
     const apiKey = process.env.RESEND_API_KEY;
@@ -90,6 +112,27 @@ export const resendEmailProvider: EmailProvider = {
         to: input.toEmail,
         subject: `${input.code} é o seu código de acesso — Verso Único`,
         html: buildLoginCodeHtml(input),
+      }),
+    });
+
+    if (!res.ok) {
+      const body = await res.text();
+      throw new Error(`Falha ao enviar e-mail via Resend (${res.status}): ${body}`);
+    }
+  },
+
+  async sendPhotoPdfReadyEmail(input) {
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!apiKey) throw new Error("RESEND_API_KEY não configurado.");
+
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        from: fromAddress(),
+        to: input.toEmail,
+        subject: `Sua foto de quadro está pronta 🖼️`,
+        html: buildPhotoPdfHtml(input),
       }),
     });
 

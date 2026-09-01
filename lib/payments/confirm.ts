@@ -30,6 +30,19 @@ export async function confirmPixPayment(correlationId: string, rawPayload: unkno
     })
     .eq("id", payment.id);
 
+  // Addon comprado separadamente da música (ver lib/actions/photoPdf.ts) —
+  // correlation_id vem no formato "photopdf:<photo_pdf_orders.id>", nunca
+  // toca orders.status, que já está em paid/delivered nesse ponto.
+  if (correlationId.startsWith("photopdf:")) {
+    const photoPdfOrderId = correlationId.slice("photopdf:".length);
+    await supabase
+      .from("photo_pdf_orders")
+      .update({ status: "paid", updated_at: new Date().toISOString() })
+      .eq("id", photoPdfOrderId)
+      .eq("status", "pending_payment");
+    return { ok: true, alreadyConfirmed: false };
+  }
+
   // preview_ready -> paid -> delivered: sem trabalho assíncrono de verdade
   // entre os dois hoje (as faixas já foram geradas antes do pagamento), mas
   // manter os dois passos deixa a máquina de estados pronta pro dia em que

@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { Mic } from "lucide-react";
 import { useWizard } from "./WizardProvider";
 import { ChoiceGrid } from "./ChoiceGrid";
 import { createDraftOrder } from "@/lib/actions/orders";
-import { cn } from "@/lib/utils";
+import { cn, formatBRL } from "@/lib/utils";
+import { VOICE_CLONE_ADDON_CENTS } from "@/lib/pricing";
 
 const RELATIONSHIPS = [
   { emoji: "💍", label: "Esposa" },
@@ -48,7 +50,7 @@ const VOICES = [
   { emoji: "🎤", label: "Dupla" },
 ];
 
-const STEP_COUNT = 10;
+const STEP_COUNT = 11;
 
 export function Wizard() {
   const { answers, setAnswer, step, setStep, reset, markSubmitted, hydrated } = useWizard();
@@ -90,12 +92,14 @@ export function Wizard() {
       case 4:
         return true;
       case 5:
-        return answers.story.trim().length >= 20;
-      case 6:
-        return answers.funDetail.trim().length >= 10;
-      case 7:
         return true;
+      case 6:
+        return answers.story.trim().length >= 20;
+      case 7:
+        return answers.funDetail.trim().length >= 10;
       case 8:
+        return true;
+      case 9:
         return answers.buyerName.trim().length > 0 && /\S+@\S+\.\S+/.test(answers.buyerEmail);
       default:
         return true;
@@ -163,6 +167,42 @@ export function Wizard() {
       )}
 
       {step === 5 && (
+        <Step
+          title="Quer cantar você mesmo(a)?"
+          subtitle="A gente clona sua voz de verdade (você grava um trechinho) e a música sai cantada por você, não pela IA."
+        >
+          <div className="flex flex-col gap-3">
+            <button
+              type="button"
+              onClick={() => setAnswer("wantsCustomVoice", true)}
+              className={cn(
+                "flex items-center gap-3 rounded-xl border p-4 text-left transition-colors",
+                answers.wantsCustomVoice ? "border-accent bg-accent-soft" : "border-base-border bg-base-soft hover:border-accent-dim"
+              )}
+            >
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent text-on-accent">
+                <Mic size={18} />
+              </span>
+              <span>
+                <span className="block text-sm font-medium text-ink">Sim, quero cantar com a minha voz</span>
+                <span className="block text-xs text-ink-muted">+{formatBRL(VOICE_CLONE_ADDON_CENTS)} no valor final</span>
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setAnswer("wantsCustomVoice", false)}
+              className={cn(
+                "rounded-xl border p-4 text-left text-sm transition-colors",
+                !answers.wantsCustomVoice ? "border-accent bg-accent-soft text-ink" : "border-base-border bg-base-soft text-ink-muted hover:border-accent-dim"
+              )}
+            >
+              Não, prefiro a voz da IA que escolhi
+            </button>
+          </div>
+        </Step>
+      )}
+
+      {step === 6 && (
         <Step title={`O que ${answers.nickname || "essa pessoa"} é pra você?`} subtitle="Quanto mais real, mais única fica a letra. Duas ou três frases já bastam.">
           <textarea
             autoFocus
@@ -176,7 +216,7 @@ export function Wizard() {
         </Step>
       )}
 
-      {step === 6 && (
+      {step === 7 && (
         <Step title={`Conta uma coisa boba sobre ${answers.nickname || "essa pessoa"}`} subtitle="Uma mania, um apelido, uma comida. Não precisa ser bonito, precisa ser verdade.">
           <textarea
             autoFocus
@@ -190,7 +230,7 @@ export function Wizard() {
         </Step>
       )}
 
-      {step === 7 && (
+      {step === 8 && (
         <Step title="Uma frase para o refrão?" subtitle="Opcional — mas costuma virar a parte mais forte da música.">
           <textarea
             rows={3}
@@ -202,7 +242,7 @@ export function Wizard() {
         </Step>
       )}
 
-      {step === 8 && (
+      {step === 9 && (
         <Step title="Pra onde a gente manda sua letra?" subtitle="A letra fica pronta na próxima tela. O e-mail é só pra você não perder.">
           <div className="flex flex-col gap-3">
             <input
@@ -222,7 +262,7 @@ export function Wizard() {
         </Step>
       )}
 
-      {step === 9 && (
+      {step === 10 && (
         <Step title="Tudo certo?" subtitle="Última conferida antes de escrever a letra.">
           <dl className="divide-y divide-base-border rounded-xl border border-base-border bg-base-soft text-sm">
             {[
@@ -230,7 +270,7 @@ export function Wizard() {
               ["Nome", answers.nickname],
               ["Ocasião", answers.occasion],
               ["Estilo", answers.genre],
-              ["Voz", answers.voicePreference],
+              ["Voz", answers.wantsCustomVoice ? "a sua, clonada" : answers.voicePreference],
             ].map(([label, value]) => (
               <div key={label} className="flex justify-between px-4 py-3">
                 <dt className="text-ink-muted">{label}</dt>

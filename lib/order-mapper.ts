@@ -18,5 +18,6 @@ export function orderToWizardAnswers(order: Order): WizardAnswers {
     chorusHint: order.chorus_hint ?? "",
     buyerName: order.buyer_name ?? "",
     buyerEmail: order.buyer_email ?? "",
+    wantsCustomVoice: order.wants_custom_voice,
   };
 }

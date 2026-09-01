@@ -13,9 +13,17 @@ export interface LoginCodeEmailInput {
   code: string;
 }
 
+export interface PhotoPdfReadyEmailInput {
+  toEmail: string;
+  buyerName: string;
+  recipientNickname: string;
+  pdfUrl: string;
+}
+
 export interface EmailProvider {
   sendGiftReadyEmail(input: GiftReadyEmailInput): Promise<void>;
   sendLoginCode(input: LoginCodeEmailInput): Promise<void>;
+  sendPhotoPdfReadyEmail(input: PhotoPdfReadyEmailInput): Promise<void>;
 }
 
 /**

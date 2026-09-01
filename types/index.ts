@@ -10,6 +10,15 @@ export type OrderStatus =
 
 export type VoicePreference = "masculina" | "feminina" | "dupla";
 
+export type VoiceCloneStatus =
+  | "none"
+  | "sample_submitted"
+  | "awaiting_phrase"
+  | "awaiting_reading"
+  | "processing"
+  | "ready"
+  | "failed";
+
 /** Respostas coletadas no wizard /criar, antes de existir um pedido no banco. */
 export interface WizardAnswers {
   relationship: string;
@@ -22,6 +31,7 @@ export interface WizardAnswers {
   chorusHint: string;
   buyerName: string;
   buyerEmail: string;
+  wantsCustomVoice: boolean;
 }
 
 export interface Order {
@@ -41,6 +51,27 @@ export interface Order {
   status: OrderStatus;
   price_cents: number;
   currency: string;
+  wants_custom_voice: boolean;
+  voice_status: VoiceCloneStatus;
+  voice_task_id: string | null;
+  voice_id: string | null;
+  voice_error: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type PhotoPdfStatus = "pending_payment" | "paid" | "generating" | "ready" | "failed";
+
+export interface PhotoPdfOrder {
+  id: string;
+  order_id: string;
+  frame_size: string;
+  source_photo_url: string;
+  status: PhotoPdfStatus;
+  amount_cents: number;
+  generated_image_url: string | null;
+  pdf_path: string | null;
+  error: string | null;
   created_at: string;
   updated_at: string;
 }

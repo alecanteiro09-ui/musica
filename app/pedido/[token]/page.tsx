@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { getOrderByBuyerToken, resolveTrackUrl } from "@/lib/actions/orders";
 import { ChorusPicker } from "@/components/order/ChorusPicker";
 import { LyricEditor } from "@/components/order/LyricEditor";
+import { VoiceRecorder } from "@/components/order/VoiceRecorder";
 import { GenerationProgress } from "@/components/order/GenerationProgress";
 import { PreviewAndPaywall } from "@/components/order/PreviewAndPaywall";
 import { UnlockedSuccess } from "@/components/order/UnlockedSuccess";
@@ -25,6 +26,10 @@ export default async function OrderPage({ params }: { params: { token: string } 
 
   if (order.status === "lyric_generated" && !fullLyric) {
     return <ChorusPicker buyerToken={order.buyer_token} nickname={order.recipient_nickname ?? ""} options={chorusOptions} />;
+  }
+
+  if (order.status === "lyric_generated" && fullLyric && order.wants_custom_voice && order.voice_status !== "ready") {
+    return <VoiceRecorder buyerToken={order.buyer_token} voiceStatus={order.voice_status} voiceError={order.voice_error} />;
   }
 
   if (order.status === "lyric_generated" && fullLyric) {

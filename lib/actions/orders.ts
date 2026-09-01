@@ -6,9 +6,8 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { getLyricsProvider } from "@/lib/ai/lyrics";
 import { getMusicProvider } from "@/lib/ai/music";
 import { getEmailProvider } from "@/lib/email/provider";
+import { computeOrderPriceCents } from "@/lib/pricing";
 import type { Order, OrderLyric, OrderPhoto, OrderStatus, OrderTrack, WizardAnswers } from "@/types";
-
-const PRICE_CENTS = Number(process.env.GIFT_PRICE_CENTS ?? 4990);
 
 export interface OrderBundle {
   order: Order;
@@ -50,7 +49,8 @@ export async function createDraftOrder(answers: WizardAnswers): Promise<void> {
       fun_detail: answers.funDetail,
       chorus_hint: answers.chorusHint,
       status: "draft",
-      price_cents: PRICE_CENTS,
+      price_cents: computeOrderPriceCents(answers.wantsCustomVoice),
+      wants_custom_voice: answers.wantsCustomVoice,
     })
     .select()
     .single();
@@ -94,6 +94,7 @@ export async function startSongGeneration(buyerToken: string, finalLyricText: st
     lyric: finalLyricText,
     genre: order.genre ?? "",
     voicePreference: order.voice_preference ?? "",
+    voiceId: order.wants_custom_voice && order.voice_status === "ready" ? order.voice_id : null,
   });
 
   const providerName = process.env.MUSIC_PROVIDER || (process.env.MUSIC_API_KEY ? "real" : "mock");

@@ -106,6 +106,9 @@ export const realMusicProvider: MusicProvider = {
         instrumental: false,
         model: MODEL,
         callBackUrl: `${siteUrl}/api/webhooks/suno`,
+        // voiceId clonado (upsell "cantar com a sua voz") — ver lib/ai/voiceClone.ts.
+        // A Suno espera esse voiceId como personaId com personaModel "voice_persona".
+        ...(input.voiceId ? { personaId: input.voiceId, personaModel: "voice_persona" } : {}),
       }),
     });
 
