@@ -14,24 +14,35 @@ function firstSentence(text: string): string {
  * nenhuma chave de API configurada. Não tenta ser um bom letrista — só
  * plausível o bastante para testar a interface ponta a ponta.
  */
+/**
+ * Vários templates por refrão — só pra "reescrever com IA" (ver ChorusPicker
+ * + regenerateChorusOptions) produzir algo visivelmente diferente mesmo no
+ * mock, sem chamada de rede nenhuma. Com Anthropic configurado, a variação
+ * vem naturalmente do modelo; aqui é só pra não parecer travado em dev.
+ */
+function chorusTemplates(nickname: string, detail: string): string[] {
+  const d = detail.toLowerCase();
+  return [
+    [`${nickname}, ${d}`, `é isso que faz de você quem é`, `e por mais que o tempo passe rápido`, `essa é a parte que eu quero guardar`].join("\n"),
+    [`Desde o dia em que a gente se encontrou, ${nickname}`, `você trouxe um jeito novo de viver`, `e hoje eu canto pra te lembrar`, `de tudo que a gente já foi construindo`].join("\n"),
+    [`Tem tanta coisa que eu nunca disse, ${nickname}`, `mas ${d}`, `e isso já diz tudo sobre nós`, `essa canção é o resto que faltava`].join("\n"),
+    [`${nickname}, se eu tivesse que escolher um instante`, `escolhia ${d}`, `porque é nesses detalhes pequenos`, `que a gente descobre o que quer guardar`].join("\n"),
+  ];
+}
+
+function pickTwoDistinct<T>(items: T[]): [T, T] {
+  const a = Math.floor(Math.random() * items.length);
+  let b = Math.floor(Math.random() * (items.length - 1));
+  if (b >= a) b += 1;
+  return [items[a], items[b]];
+}
+
 export const mockLyricsProvider: LyricsProvider = {
   async generateChorusOptions(input: WizardAnswers) {
     await new Promise((r) => setTimeout(r, 300));
     const detail = firstSentence(input.funDetail || input.story || "esse jeito só seu");
-    return {
-      optionA: [
-        `${input.nickname}, ${detail.toLowerCase()}`,
-        `é isso que faz de você quem é`,
-        `e por mais que o tempo passe rápido`,
-        `essa é a parte que eu quero guardar`,
-      ].join("\n"),
-      optionB: [
-        `Desde o dia em que a gente se encontrou, ${input.nickname}`,
-        `você trouxe um jeito novo de viver`,
-        `e hoje eu canto pra te lembrar`,
-        `de tudo que a gente já foi construindo`,
-      ].join("\n"),
-    };
+    const [optionA, optionB] = pickTwoDistinct(chorusTemplates(input.nickname, detail));
+    return { optionA, optionB };
   },
 
   async generateFullLyric(input) {

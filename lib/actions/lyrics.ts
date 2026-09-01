@@ -34,3 +34,21 @@ export async function selectChorusAndGenerateFullLyric(buyerToken: string, chose
 
   revalidatePath(`/pedido/${buyerToken}`);
 }
+
+/** Gera 2 novas opções de refrão pra substituir as atuais (pedido do usuário: "reescrever com IA"). */
+export async function regenerateChorusOptions(buyerToken: string): Promise<void> {
+  const bundle = await getOrderByBuyerToken(buyerToken);
+  if (!bundle) throw new Error("Pedido não encontrado.");
+  const { order } = bundle;
+
+  const { optionA, optionB } = await getLyricsProvider().generateChorusOptions(orderToWizardAnswers(order));
+
+  const supabase = createAdminClient();
+  await supabase.from("order_lyrics").delete().eq("order_id", order.id).eq("kind", "chorus_option");
+  await supabase.from("order_lyrics").insert([
+    { order_id: order.id, kind: "chorus_option", content: optionA },
+    { order_id: order.id, kind: "chorus_option", content: optionB },
+  ]);
+
+  revalidatePath(`/pedido/${buyerToken}`);
+}
