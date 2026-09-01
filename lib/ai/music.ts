@@ -7,6 +7,8 @@ export interface GenerateSongInput {
   lyric: string;
   genre: string;
   voicePreference: string;
+  /** Clima emocional opcional escolhido no wizard (romântico, divertido, emocionante, animado). */
+  mood?: string;
   /** voiceId clonado (ver lib/ai/voiceClone.ts) — quando presente, a música sai cantada nessa voz em vez da voz padrão da IA. */
   voiceId?: string | null;
 }

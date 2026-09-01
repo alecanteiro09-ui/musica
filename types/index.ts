@@ -32,6 +32,10 @@ export interface WizardAnswers {
   buyerName: string;
   buyerEmail: string;
   wantsCustomVoice: boolean;
+  /** Tom emocional opcional (romântica, divertida, emocionante, animada...). */
+  mood: string;
+  /** Nomes que a pessoa quer citados na letra (ex: filhos), separados por vírgula. Opcional. */
+  namesToInclude: string;
 }
 
 export interface Order {
@@ -51,6 +55,8 @@ export interface Order {
   status: OrderStatus;
   price_cents: number;
   currency: string;
+  mood: string | null;
+  names_to_include: string | null;
   wants_custom_voice: boolean;
   voice_status: VoiceCloneStatus;
   voice_task_id: string | null;

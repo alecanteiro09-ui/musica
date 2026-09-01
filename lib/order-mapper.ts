@@ -19,5 +19,7 @@ export function orderToWizardAnswers(order: Order): WizardAnswers {
     buyerName: order.buyer_name ?? "",
     buyerEmail: order.buyer_email ?? "",
     wantsCustomVoice: order.wants_custom_voice,
+    mood: order.mood ?? "",
+    namesToInclude: order.names_to_include ?? "",
   };
 }

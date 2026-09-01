@@ -4,6 +4,8 @@ import { useState, useTransition } from "react";
 import { Mic } from "lucide-react";
 import { useWizard } from "./WizardProvider";
 import { ChoiceGrid } from "./ChoiceGrid";
+import { PromptChips } from "./PromptChips";
+import { VoiceToTextButton } from "./VoiceToTextButton";
 import { createDraftOrder } from "@/lib/actions/orders";
 import { cn, formatBRL } from "@/lib/utils";
 import { VOICE_CLONE_ADDON_CENTS } from "@/lib/pricing";
@@ -19,8 +21,14 @@ const RELATIONSHIPS = [
   { emoji: "👴", label: "Avô" },
   { emoji: "👧", label: "Filha" },
   { emoji: "👦", label: "Filho" },
+  { emoji: "👭", label: "Irmã" },
+  { emoji: "👬", label: "Irmão" },
+  { emoji: "👧", label: "Neta" },
+  { emoji: "👦", label: "Neto" },
+  { emoji: "🏠", label: "Família" },
   { emoji: "🫂", label: "Amiga" },
   { emoji: "🫂", label: "Amigo" },
+  { emoji: "🐾", label: "Pet" },
   { emoji: "✨", label: "Outro" },
 ];
 
@@ -34,23 +42,40 @@ const OCCASIONS = [
 ];
 
 const GENRES = [
-  { emoji: "🎸", label: "Sertanejo" },
-  { emoji: "🎙️", label: "MPB" },
-  { emoji: "💕", label: "Pop" },
-  { emoji: "🥁", label: "Pagode" },
-  { emoji: "🪗", label: "Forró" },
   { emoji: "📖", label: "Gospel" },
+  { emoji: "💕", label: "Pop romântico" },
+  { emoji: "🎸", label: "Sertanejo" },
+  { emoji: "🤠", label: "Sertanejo universitário" },
+  { emoji: "🎙️", label: "MPB" },
+  { emoji: "🥁", label: "Pagode / samba" },
+  { emoji: "🪘", label: "Piseiro / arrocha" },
+  { emoji: "🪗", label: "Forró" },
   { emoji: "🌙", label: "Bossa nova" },
   { emoji: "🤘", label: "Rock" },
+  { emoji: "🌴", label: "Reggae" },
+  { emoji: "🎤", label: "Rap / hip-hop" },
+  { emoji: "🧸", label: "Infantil" },
 ];
 
 const VOICES = [
   { emoji: "👩", label: "Feminina" },
   { emoji: "👨", label: "Masculina" },
   { emoji: "🎤", label: "Dupla" },
+  { emoji: "🎲", label: "Surpreenda-me" },
 ];
 
-const STEP_COUNT = 11;
+const MOODS = [
+  { emoji: "❤️", label: "Romântico" },
+  { emoji: "😄", label: "Divertido" },
+  { emoji: "🥹", label: "Emocionante" },
+  { emoji: "🎉", label: "Animado" },
+];
+
+const STORY_CHIPS = ["como nos conhecemos", "o que eu admiro", "o que você faz por mim", "uma coisa que nunca te disse"];
+const DETAIL_CHIPS = ["um apelido bobo", "uma comida favorita", "um lugar especial", "uma mania engraçada"];
+const CHORUS_CHIPS = ["obrigado(a) por...", "eu nunca te disse, mas...", "você me ensinou...", "enquanto eu viver..."];
+
+const STEP_COUNT = 12;
 
 export function Wizard() {
   const { answers, setAnswer, step, setStep, reset, markSubmitted, hydrated } = useWizard();
@@ -100,6 +125,8 @@ export function Wizard() {
       case 8:
         return true;
       case 9:
+        return true;
+      case 10:
         return answers.buyerName.trim().length > 0 && /\S+@\S+\.\S+/.test(answers.buyerEmail);
       default:
         return true;
@@ -149,7 +176,7 @@ export function Wizard() {
       )}
 
       {step === 3 && (
-        <Step title={`Que estilo combina com ${answers.nickname || "essa pessoa"}?`}>
+        <Step title={`Que estilo combina com ${answers.nickname || "essa pessoa"}?`} subtitle="É o clima da música. Dá pra mudar depois.">
           <ChoiceGrid options={GENRES} value={answers.genre} onChange={(v) => setAnswer("genre", v)} />
         </Step>
       )}
@@ -159,10 +186,35 @@ export function Wizard() {
           <ChoiceGrid
             options={VOICES}
             value={answers.voicePreference === "masculina" ? "Masculina" : answers.voicePreference === "dupla" ? "Dupla" : "Feminina"}
-            onChange={(v) =>
-              setAnswer("voicePreference", v === "Masculina" ? "masculina" : v === "Dupla" ? "dupla" : "feminina")
-            }
+            onChange={(v) => {
+              if (v === "Surpreenda-me") {
+                setAnswer("voicePreference", Math.random() < 0.5 ? "masculina" : "feminina");
+                return;
+              }
+              setAnswer("voicePreference", v === "Masculina" ? "masculina" : v === "Dupla" ? "dupla" : "feminina");
+            }}
           />
+          <div className="mt-8 border-t border-base-border pt-6">
+            <p className="mb-3 text-xs uppercase tracking-wide text-ink-muted">E o clima da música? (opcional)</p>
+            <div className="flex flex-wrap justify-center gap-2">
+              {MOODS.map((m) => (
+                <button
+                  key={m.label}
+                  type="button"
+                  onClick={() => setAnswer("mood", answers.mood === m.label ? "" : m.label)}
+                  className={cn(
+                    "flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs transition-colors",
+                    answers.mood === m.label
+                      ? "border-accent bg-accent-soft text-ink"
+                      : "border-base-border text-ink-muted hover:border-accent-dim"
+                  )}
+                >
+                  <span aria-hidden>{m.emoji}</span>
+                  {m.label}
+                </button>
+              ))}
+            </div>
+          </div>
         </Step>
       )}
 
@@ -203,7 +255,8 @@ export function Wizard() {
       )}
 
       {step === 6 && (
-        <Step title={`O que ${answers.nickname || "essa pessoa"} é pra você?`} subtitle="Quanto mais real, mais única fica a letra. Duas ou três frases já bastam.">
+        <Step title={`O que ${answers.nickname || "essa pessoa"} é pra você?`} subtitle="Escreva do seu jeito. Quanto mais real, mais única fica a letra.">
+          <PromptChips chips={STORY_CHIPS} value={answers.story} onPick={(starter) => setAnswer("story", starter + " ")} />
           <textarea
             autoFocus
             rows={5}
@@ -213,11 +266,15 @@ export function Wizard() {
             className="w-full rounded-xl border border-base-border bg-base-soft px-4 py-3 text-ink outline-none focus:border-accent"
           />
           <HelperText length={answers.story.trim().length} min={20} />
+          <div className="mt-3">
+            <VoiceToTextButton onResult={(text) => setAnswer("story", (answers.story ? answers.story + " " : "") + text)} />
+          </div>
         </Step>
       )}
 
       {step === 7 && (
         <Step title={`Conta uma coisa boba sobre ${answers.nickname || "essa pessoa"}`} subtitle="Uma mania, um apelido, uma comida. Não precisa ser bonito, precisa ser verdade.">
+          <PromptChips chips={DETAIL_CHIPS} value={answers.funDetail} onPick={(starter) => setAnswer("funDetail", starter + " ")} />
           <textarea
             autoFocus
             rows={4}
@@ -227,11 +284,15 @@ export function Wizard() {
             className="w-full rounded-xl border border-base-border bg-base-soft px-4 py-3 text-ink outline-none focus:border-accent"
           />
           <HelperText length={answers.funDetail.trim().length} min={10} />
+          <div className="mt-3">
+            <VoiceToTextButton onResult={(text) => setAnswer("funDetail", (answers.funDetail ? answers.funDetail + " " : "") + text)} />
+          </div>
         </Step>
       )}
 
       {step === 8 && (
         <Step title="Uma frase para o refrão?" subtitle="Opcional — mas costuma virar a parte mais forte da música.">
+          <PromptChips chips={CHORUS_CHIPS} value={answers.chorusHint} onPick={(starter) => setAnswer("chorusHint", starter + " ")} />
           <textarea
             rows={3}
             value={answers.chorusHint}
@@ -243,6 +304,22 @@ export function Wizard() {
       )}
 
       {step === 9 && (
+        <Step title="Quer citar outros nomes na letra?" subtitle="Filhos, netos, um apelido de família — o que fizer sentido. Opcional.">
+          <input
+            value={answers.namesToInclude}
+            onChange={(e) => setAnswer("namesToInclude", e.target.value)}
+            placeholder="Ex: Ana e Théo"
+            className="w-full rounded-xl border border-base-border bg-base-soft px-4 py-3 text-center text-ink outline-none focus:border-accent"
+          />
+          {answers.namesToInclude.trim() && (
+            <p className="mt-4 rounded-xl border border-base-border bg-base-soft px-4 py-3 text-center text-sm italic text-ink-muted">
+              "...e nunca esquecer {answers.namesToInclude}, do jeitinho que são"
+            </p>
+          )}
+        </Step>
+      )}
+
+      {step === 10 && (
         <Step title="Pra onde a gente manda sua letra?" subtitle="A letra fica pronta na próxima tela. O e-mail é só pra você não perder.">
           <div className="flex flex-col gap-3">
             <input
@@ -262,7 +339,7 @@ export function Wizard() {
         </Step>
       )}
 
-      {step === 10 && (
+      {step === 11 && (
         <Step title="Tudo certo?" subtitle="Última conferida antes de escrever a letra.">
           <dl className="divide-y divide-base-border rounded-xl border border-base-border bg-base-soft text-sm">
             {[
@@ -271,12 +348,16 @@ export function Wizard() {
               ["Ocasião", answers.occasion],
               ["Estilo", answers.genre],
               ["Voz", answers.wantsCustomVoice ? "a sua, clonada" : answers.voicePreference],
-            ].map(([label, value]) => (
-              <div key={label} className="flex justify-between px-4 py-3">
-                <dt className="text-ink-muted">{label}</dt>
-                <dd className="text-ink">{value || "—"}</dd>
-              </div>
-            ))}
+              ["Clima", answers.mood],
+              ["Outros nomes", answers.namesToInclude],
+            ]
+              .filter(([, value]) => value)
+              .map(([label, value]) => (
+                <div key={label} className="flex justify-between px-4 py-3">
+                  <dt className="text-ink-muted">{label}</dt>
+                  <dd className="text-ink">{value || "—"}</dd>
+                </div>
+              ))}
           </dl>
           {formError && <p className="mt-3 text-sm text-accent">{formError}</p>}
         </Step>

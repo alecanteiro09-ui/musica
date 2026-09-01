@@ -80,7 +80,7 @@ export const mockLyricsProvider: LyricsProvider = {
       "",
       "[Outro]",
       `${input.nickname}, essa canção é sua`,
-      "e vai ficar tocando muito depois de acabar",
+      input.namesToInclude ? `e nunca esquecer ${input.namesToInclude}, do jeitinho que são` : "e vai ficar tocando muito depois de acabar",
     ].join("\n");
   },
 };

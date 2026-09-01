@@ -48,6 +48,8 @@ export async function createDraftOrder(answers: WizardAnswers): Promise<void> {
       story: answers.story,
       fun_detail: answers.funDetail,
       chorus_hint: answers.chorusHint,
+      mood: answers.mood || null,
+      names_to_include: answers.namesToInclude || null,
       status: "draft",
       price_cents: computeOrderPriceCents(answers.wantsCustomVoice),
       wants_custom_voice: answers.wantsCustomVoice,
@@ -94,6 +96,7 @@ export async function startSongGeneration(buyerToken: string, finalLyricText: st
     lyric: finalLyricText,
     genre: order.genre ?? "",
     voicePreference: order.voice_preference ?? "",
+    mood: order.mood ?? "",
     voiceId: order.wants_custom_voice && order.voice_status === "ready" ? order.voice_id : null,
   });
 

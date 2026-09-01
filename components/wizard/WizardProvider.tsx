@@ -17,6 +17,8 @@ const EMPTY_ANSWERS: WizardAnswers = {
   buyerName: "",
   buyerEmail: "",
   wantsCustomVoice: false,
+  mood: "",
+  namesToInclude: "",
 };
 
 interface WizardContextValue {

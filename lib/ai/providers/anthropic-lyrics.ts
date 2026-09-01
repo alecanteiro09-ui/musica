@@ -54,6 +54,8 @@ export const anthropicLyricsProvider: LyricsProvider = {
 História: ${input.story}
 Detalhe marcante: ${input.funDetail}
 ${input.chorusHint ? `Frase que precisa aparecer: "${input.chorusHint}"` : ""}
+${input.mood ? `Clima emocional pedido: ${input.mood}.` : ""}
+${input.namesToInclude ? `Se fizer sentido, cite também: ${input.namesToInclude}.` : ""}
 Responda estritamente como JSON: {"optionA": "...", "optionB": "..."} (linhas separadas por \\n).`,
         },
       ],
@@ -79,6 +81,8 @@ Responda estritamente como JSON: {"optionA": "...", "optionB": "..."} (linhas se
           content: `Escreva a letra completa de uma música ${input.genre} sobre ${input.nickname} (${input.relationship}), ocasião: ${input.occasion}, voz: ${input.voicePreference}.
 História: ${input.story}
 Detalhe marcante: ${input.funDetail}
+${input.mood ? `Clima emocional pedido: ${input.mood}.` : ""}
+${input.namesToInclude ? `Cite também, onde fizer sentido (ex: na ponte ou no outro): ${input.namesToInclude}.` : ""}
 Use este refrão exatamente como o [Chorus] (repita nas duas ocorrências):
 ${input.chosenChorus}`,
         },

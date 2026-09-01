@@ -39,6 +39,15 @@ function voiceLabel(v: string): string {
   return "female vocal";
 }
 
+function moodLabel(mood: string): string {
+  const key = mood.trim().toLowerCase();
+  if (key === "romântico" || key === "romantico") return "deeply romantic mood";
+  if (key === "divertido") return "playful, lighthearted mood";
+  if (key === "emocionante") return "tender, moving mood, builds emotional intensity";
+  if (key === "animado") return "upbeat, high-energy mood";
+  return mood;
+}
+
 function wordsFromLyric(lyric: string): string[] {
   return lyric
     .split("\n")
@@ -86,7 +95,7 @@ async function downloadAndStore(url: string, path: string): Promise<void> {
 
 export const realMusicProvider: MusicProvider = {
   async generateSong(input: GenerateSongInput) {
-    const style = `${input.genre || "pop"}, ${voiceLabel(input.voicePreference)}, Brazilian Portuguese, warm and intimate lead vocal, radio-quality mix, emotionally sincere delivery, acoustic-leaning modern production, clear diction`;
+    const style = `${input.genre || "pop"}, ${voiceLabel(input.voicePreference)}, Brazilian Portuguese, warm and intimate lead vocal, radio-quality mix, emotionally sincere delivery, acoustic-leaning modern production, clear diction${input.mood ? `, ${moodLabel(input.mood)}` : ""}`;
     const title = `Verso Único — ${input.orderId.slice(0, 8)}`;
 
     // callBackUrl é obrigatório pra API aceitar o request (erro 422 sem ele),
