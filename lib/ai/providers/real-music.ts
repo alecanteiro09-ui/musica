@@ -20,20 +20,47 @@ import type { WordTimestamp } from "@/types";
  * pronta — nem os valores exatos que o campo `status` assume além de
  * "preparing". A extração abaixo tenta vários formatos plausíveis
  * (`extractAudioUrl`/`extractDurationSeconds`) e loga a resposta crua se não
- * encontrar nada — CONFIRA contra uma chamada real (já testamos a criação do
- * job com sucesso; falta validar o polling até completar) antes de confiar
- * em produção.
+ * encontrar nada.
+ *
+ * PREÇO/CONCORRÊNCIA (confirmado ao vivo, plataforma real): a Mureka cobra
+ * por "compra" — cada tier trava um número fixo de requisições concorrentes
+ * pelos próximos 12 meses (Trial US$10 = 1 concorrente, Basic US$1.000 = 5,
+ * Standard US$3.000 = 15, Business US$5.000 = 25, Enterprise US$30.000 =
+ * 150 — ver platform.mureka.ai/pricing). Isso não é o mesmo que "preço por
+ * música" — é uma licença de capacidade. Com 1 concorrente (tier de teste),
+ * as duas faixas do pedido têm que ser geradas em série de verdade, uma só
+ * começando depois que a outra chega em "succeeded" — não basta só não
+ * chamar em paralelo, tem que esperar terminar. É exatamente isso que
+ * generateSong()/getGenerationStatus() fazem abaixo. Antes de ter tráfego
+ * real, contratar um tier com mais concorrência — no tier de teste, dois
+ * clientes comprando ao mesmo tempo colidem.
  */
 
 const MUREKA_BASE = "https://api.mureka.ai/v1";
 
-// getGenerationStatus() só recebe o providerJobId, mas precisa da letra pra
-// calcular os tempos de palavra do karaokê — guardamos aqui, keyed pelo job,
-// no momento em que a geração começa. Mesma ressalva do mock: só funciona em
-// processo Node persistente (`next dev`); numa serverless real, guarde a
-// letra em order_tracks (ela já existe no banco) e busque de lá em vez de
-// depender de memória do processo.
-const lyricByJobId = new Map<string, string>();
+/**
+ * A conta paga é por "compra" e cada tier trava um número fixo de
+ * requisições CONCORRENTES — confirmado em platform.mureka.ai/pricing:
+ * Trial (US$10) = 1 concorrente, Basic (US$1.000) = 5, e assim por diante.
+ * "Concorrente" aqui é a tarefa de geração inteira, não só a chamada HTTP —
+ * então com 1 slot, a segunda faixa (take_2) só pode ser *iniciada* depois
+ * que a primeira (take_1) chegar em status de sucesso, não só depois do
+ * take_1 responder à chamada de criação. generateSong() só inicia a
+ * primeira; getGenerationStatus() inicia a segunda de forma preguiçosa, no
+ * primeiro poll em que a primeira já estiver pronta.
+ *
+ * Guardamos esse estado em memória, keyed pelo jobId (= task_id da primeira
+ * faixa). Mesma ressalva de sempre: só funciona em processo Node persistente
+ * (`next dev`); numa serverless real, mova esse estado pra fora do processo
+ * (ex. numa coluna em order_tracks) antes de ter tráfego de verdade.
+ */
+interface MurekaJob {
+  input: GenerateSongInput;
+  taskId1: string;
+  taskId2: string | null;
+  take1?: { audioUrl: string; durationSeconds: number };
+}
+const jobs = new Map<string, MurekaJob>();
 
 // Valores de status que já vimos confirmados ou que são o padrão mais comum
 // em APIs assíncronas parecidas (Suno-like). Ajuste aqui se a Mureka usar
@@ -137,56 +164,76 @@ async function downloadAndStore(url: string, path: string): Promise<void> {
 
 export const realMusicProvider: MusicProvider = {
   async generateSong(input: GenerateSongInput) {
-    // 2 chamadas separadas = 2 tarefas independentes na Mureka (take_1/take_2).
-    // Combinamos os dois task_ids num único providerJobId (separados por "::")
-    // pra caber na nossa interface, que guarda um jobId só por pedido.
-    const [taskId1, taskId2] = await Promise.all([startGeneration(input), startGeneration(input)]);
-    const jobId = `${taskId1}::${taskId2}`;
-    lyricByJobId.set(jobId, input.lyric);
-    return { providerJobId: jobId };
+    // Só inicia a PRIMEIRA faixa aqui. A segunda começa depois, dentro do
+    // polling — ver nota acima sobre o limite de 1 requisição concorrente.
+    const taskId1 = await startGeneration(input);
+    jobs.set(taskId1, { input, taskId1, taskId2: null });
+    return { providerJobId: taskId1 };
   },
 
   async getGenerationStatus(providerJobId: string): Promise<GenerationStatus> {
-    const [taskId1, taskId2] = providerJobId.split("::");
-    const [raw1, raw2] = await Promise.all([queryTask(taskId1), queryTask(taskId2)]);
+    const job = jobs.get(providerJobId);
+    if (!job) return { status: "failed" };
 
-    const status1 = extractStatus(raw1);
+    const words = wordsFromLyric(job.input.lyric);
+
+    // Fase 1: esperando a primeira faixa (take_1) terminar.
+    if (!job.taskId2) {
+      const raw1 = await queryTask(job.taskId1);
+      const status1 = extractStatus(raw1);
+
+      if (FAILURE_STATES.includes(status1)) {
+        console.error("[mureka] take_1 falhou", { taskId: job.taskId1, status1 });
+        return { status: "failed" };
+      }
+      if (!SUCCESS_STATES.includes(status1)) return { status: "processing" };
+
+      const url1 = extractAudioUrl(raw1);
+      if (!url1) {
+        console.error("[mureka] take_1 concluído mas sem URL de áudio reconhecida", raw1);
+        return { status: "failed" };
+      }
+      const duration1 = extractDurationSeconds(raw1, words);
+      const path1 = `mureka/${job.taskId1}.mp3`;
+      await downloadAndStore(url1, path1);
+      job.take1 = { audioUrl: path1, durationSeconds: duration1 };
+
+      // take_1 pronto — só agora dá pra ocupar o único slot concorrente com a take_2.
+      job.taskId2 = await startGeneration(job.input);
+      jobs.set(providerJobId, job);
+      return { status: "processing" };
+    }
+
+    // Fase 2: take_1 já pronto, esperando a take_2.
+    const raw2 = await queryTask(job.taskId2);
     const status2 = extractStatus(raw2);
 
-    if (FAILURE_STATES.includes(status1) || FAILURE_STATES.includes(status2)) {
-      console.error("[mureka] tarefa falhou", { taskId1, status1, taskId2, status2 });
+    if (FAILURE_STATES.includes(status2)) {
+      console.error("[mureka] take_2 falhou", { taskId: job.taskId2, status2 });
       return { status: "failed" };
     }
+    if (!SUCCESS_STATES.includes(status2)) return { status: "processing" };
 
-    const ready1 = SUCCESS_STATES.includes(status1);
-    const ready2 = SUCCESS_STATES.includes(status2);
-    if (!ready1 || !ready2) return { status: "processing" };
-
-    const url1 = extractAudioUrl(raw1);
     const url2 = extractAudioUrl(raw2);
-    if (!url1 || !url2) {
-      console.error("[mureka] status concluído mas sem URL de áudio reconhecida", { raw1, raw2 });
+    if (!url2) {
+      console.error("[mureka] take_2 concluído mas sem URL de áudio reconhecida", raw2);
       return { status: "failed" };
     }
-
-    // orderId não está disponível aqui (só o jobId) — usamos os próprios
-    // task_ids no caminho do Storage, únicos o bastante.
-    const path1 = `mureka/${taskId1}.mp3`;
-    const path2 = `mureka/${taskId2}.mp3`;
-    await Promise.all([downloadAndStore(url1, path1), downloadAndStore(url2, path2)]);
-
-    const words = wordsFromLyric(lyricByJobId.get(providerJobId) ?? "");
-    const duration1 = extractDurationSeconds(raw1, words);
     const duration2 = extractDurationSeconds(raw2, words);
+    const path2 = `mureka/${job.taskId2}.mp3`;
+    await downloadAndStore(url2, path2);
+
+    const take1 = job.take1!;
+    jobs.delete(providerJobId);
 
     return {
       status: "ready",
       tracks: [
         {
           variant: "take_1",
-          audioUrl: path1,
-          durationSeconds: duration1,
-          wordTimestamps: interpolateTimestamps(words, duration1),
+          audioUrl: take1.audioUrl,
+          durationSeconds: take1.durationSeconds,
+          wordTimestamps: interpolateTimestamps(words, take1.durationSeconds),
         },
         {
           variant: "take_2",
