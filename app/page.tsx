@@ -35,30 +35,30 @@ export default function HomePage() {
     <div className="overflow-x-clip">
       <section className="relative mx-auto grid max-w-5xl gap-12 px-6 pb-14 pt-16 md:grid-cols-[1.1fr_0.9fr] md:items-center md:pt-24">
         <div
-          className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-accent-soft opacity-70 blur-3xl"
+          className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-accent-soft opacity-70 blur-3xl animate-[drift-a_14s_ease-in-out_infinite]"
           aria-hidden
         />
         <div
-          className="pointer-events-none absolute -right-16 top-40 h-56 w-56 rounded-full bg-accent-soft opacity-50 blur-3xl"
+          className="pointer-events-none absolute -right-16 top-40 h-56 w-56 rounded-full bg-accent-soft opacity-50 blur-3xl animate-[drift-b_18s_ease-in-out_infinite]"
           aria-hidden
         />
 
-        <div className="relative">
+        <div className="relative flex flex-col items-center text-center md:items-start md:text-left">
           <span className="inline-flex items-center rounded-full border border-base-border bg-base-soft px-3 py-1 text-xs text-ink-muted">
             🎁 pra mãe, pai, namorado(a), avó ou em memória
           </span>
           <p className="mt-4 text-sm font-medium uppercase tracking-wide text-accent">presente que se ouve</p>
-          <h1 className="mt-4 max-w-xl font-display text-4xl italic leading-tight text-ink md:text-6xl">
+          <h1 className="mt-4 max-w-xl font-display text-4xl italic leading-tight text-ink sm:text-5xl md:text-6xl">
             Sua história, em canção.
           </h1>
           <p className="mt-6 max-w-xl text-lg text-ink-muted">
             Conte sobre alguém que você ama. Em minutos, você recebe uma música original — composta e cantada a
             partir dessa história — pronta pra emocionar.
           </p>
-          <div className="mt-8 flex flex-wrap items-center gap-4">
+          <div className="mt-8 flex flex-col items-center gap-4 sm:flex-row">
             <Link
               href="/criar"
-              className="rounded-full bg-accent px-6 py-3 font-medium text-on-accent transition-transform hover:scale-[1.03] hover:bg-accent-dim active:scale-[0.98]"
+              className="rounded-full bg-accent px-6 py-3 font-medium text-on-accent shadow-[0_10px_30px_-10px_rgba(255,122,84,0.55)] transition-all hover:scale-[1.03] hover:bg-accent-dim active:scale-[0.98]"
             >
               Criar minha música — grátis
             </Link>
@@ -129,7 +129,7 @@ export default function HomePage() {
             </p>
             <Link
               href="/criar"
-              className="mt-8 inline-block rounded-full bg-accent px-6 py-3 font-medium text-on-accent transition-transform hover:scale-[1.03] hover:bg-accent-dim active:scale-[0.98]"
+              className="mt-8 inline-block rounded-full bg-accent px-6 py-3 font-medium text-on-accent shadow-[0_10px_30px_-10px_rgba(255,122,84,0.55)] transition-all hover:scale-[1.03] hover:bg-accent-dim active:scale-[0.98]"
             >
               Começar agora
             </Link>

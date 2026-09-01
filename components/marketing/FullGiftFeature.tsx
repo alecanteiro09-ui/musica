@@ -61,7 +61,7 @@ export function FullGiftFeature() {
 
           <Link
             href="/g/41326d27-4189-467e-8e0a-53c7cd993fc1"
-            className="mt-9 inline-flex items-center gap-2 rounded-full bg-accent px-6 py-3 font-medium text-on-accent transition-transform hover:scale-[1.03] active:scale-[0.98]"
+            className="mt-9 inline-flex items-center gap-2 rounded-full bg-accent px-6 py-3 font-medium text-on-accent shadow-[0_10px_30px_-10px_rgba(255,122,84,0.55)] transition-all hover:scale-[1.03] active:scale-[0.98]"
           >
             Ver uma página-presente de verdade
           </Link>

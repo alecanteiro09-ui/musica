@@ -34,7 +34,7 @@ export function PricingIncludes() {
 
           <Link
             href="/criar"
-            className="mt-8 inline-block rounded-full bg-accent px-6 py-3 font-medium text-on-accent transition-transform hover:scale-[1.03] hover:bg-accent-dim active:scale-[0.98]"
+            className="mt-8 inline-block rounded-full bg-accent px-6 py-3 font-medium text-on-accent shadow-[0_10px_30px_-10px_rgba(255,122,84,0.55)] transition-all hover:scale-[1.03] hover:bg-accent-dim active:scale-[0.98]"
           >
             Criar minha música — grátis pra começar
           </Link>
