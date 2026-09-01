@@ -4,6 +4,7 @@ import { DemoPreview } from "@/components/marketing/DemoPreview";
 import { ReactionMoment } from "@/components/marketing/ReactionMoment";
 import { StatsStrip } from "@/components/marketing/StatsStrip";
 import { OccasionGrid } from "@/components/marketing/OccasionGrid";
+import { RelationshipGallery } from "@/components/marketing/RelationshipGallery";
 import { FullGiftFeature } from "@/components/marketing/FullGiftFeature";
 import { WhyItLasts } from "@/components/marketing/WhyItLasts";
 import { TwoVersions } from "@/components/marketing/TwoVersions";
@@ -113,6 +114,7 @@ export default function HomePage() {
 
       <FullGiftFeature />
       <WhyItLasts />
+      <RelationshipGallery />
       <TwoVersions />
       <PricingIncludes />
       <Faq />
