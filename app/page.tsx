@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Sparkles, Ear, Send } from "lucide-react";
 import { DemoPreview } from "@/components/marketing/DemoPreview";
+import { ReactionMoment } from "@/components/marketing/ReactionMoment";
 import { StatsStrip } from "@/components/marketing/StatsStrip";
 import { OccasionGrid } from "@/components/marketing/OccasionGrid";
 import { FullGiftFeature } from "@/components/marketing/FullGiftFeature";
@@ -64,7 +65,8 @@ export default function HomePage() {
           </div>
         </div>
 
-        <div className="relative">
+        <div className="relative space-y-4">
+          <ReactionMoment />
           <DemoPreview />
         </div>
       </section>
