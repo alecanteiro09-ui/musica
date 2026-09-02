@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/server";
 import { getEmailProvider } from "@/lib/email/provider";
 import { PHOTO_PDF_ADDON_CENTS } from "@/lib/pricing";
+import { sendSaleNotificationSafely } from "@/lib/notify/ntfy";
 
 /**
  * Confirma um pagamento Pix e libera o pedido. Chamado tanto pelo webhook
@@ -14,7 +15,7 @@ export async function confirmPixPayment(correlationId: string, rawPayload: unkno
 
   const { data: payment } = await supabase
     .from("payments")
-    .select("id, order_id, status")
+    .select("id, order_id, status, amount_cents, method")
     .eq("correlation_id", correlationId)
     .single();
 
@@ -49,6 +50,7 @@ export async function confirmPixPayment(correlationId: string, rawPayload: unkno
 
   await createPhotoPdfOrderIfRequested(payment.order_id);
   await sendGiftReadyEmailSafely(payment.order_id);
+  await sendSaleNotificationSafely(payment.order_id, payment.amount_cents, payment.method);
 
   return { ok: true, alreadyConfirmed: false };
 }
