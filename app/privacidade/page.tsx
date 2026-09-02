@@ -88,8 +88,8 @@ export default function PrivacidadePage() {
             Você pode, a qualquer momento, pedir acesso aos seus dados, correção, exclusão, ou revogar um
             consentimento dado (por exemplo, pedir a remoção da foto ou da gravação de voz enviadas). Basta
             escrever pra{" "}
-            <a href="mailto:contato@versounico.com.br" className="text-accent underline">
-              contato@versounico.com.br
+            <a href="mailto:contato@versounicogift.online" className="text-accent underline">
+              contato@versounicogift.online
             </a>
             .
           </p>
@@ -109,8 +109,8 @@ export default function PrivacidadePage() {
         <Section title="10. Contato">
           <p>
             Dúvidas sobre seus dados ou esta política:{" "}
-            <a href="mailto:contato@versounico.com.br" className="text-accent underline">
-              contato@versounico.com.br
+            <a href="mailto:contato@versounicogift.online" className="text-accent underline">
+              contato@versounicogift.online
             </a>
             .
           </p>

@@ -41,8 +41,8 @@ export default function TermosPage() {
             A liberação é automática assim que o pagamento é confirmado: a tela do próprio site libera a
             música na hora, e enviamos também um e-mail de backup com o link, pro caso de você fechar a aba
             antes de salvar. Se o pagamento não for confirmado em alguns minutos, escreva pra{" "}
-            <a href="mailto:contato@versounico.com.br" className="text-accent underline">
-              contato@versounico.com.br
+            <a href="mailto:contato@versounicogift.online" className="text-accent underline">
+              contato@versounicogift.online
             </a>
             .
           </p>
@@ -52,8 +52,8 @@ export default function TermosPage() {
           <p>
             Você tem 7 dias corridos após a liberação da música pra pedir reembolso, sem precisar justificar o
             motivo. Basta escrever pra{" "}
-            <a href="mailto:contato@versounico.com.br" className="text-accent underline">
-              contato@versounico.com.br
+            <a href="mailto:contato@versounicogift.online" className="text-accent underline">
+              contato@versounicogift.online
             </a>{" "}
             com o e-mail usado na compra.
           </p>
@@ -91,8 +91,8 @@ export default function TermosPage() {
         <Section title="9. Contato">
           <p>
             Dúvidas, reembolso ou qualquer outra coisa:{" "}
-            <a href="mailto:contato@versounico.com.br" className="text-accent underline">
-              contato@versounico.com.br
+            <a href="mailto:contato@versounicogift.online" className="text-accent underline">
+              contato@versounicogift.online
             </a>
             .
           </p>

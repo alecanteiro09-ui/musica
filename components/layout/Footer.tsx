@@ -13,8 +13,8 @@ export function Footer() {
         <div className="mt-6 flex flex-col gap-3 border-t border-base-border pt-6 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs text-ink-muted">
             LVC DIGITAL LTDA · CNPJ 41.949.006/0001-97 ·{" "}
-            <a href="mailto:contato@versounico.com.br" className="underline decoration-dotted hover:text-ink">
-              contato@versounico.com.br
+            <a href="mailto:contato@versounicogift.online" className="underline decoration-dotted hover:text-ink">
+              contato@versounicogift.online
             </a>
           </p>
           <div className="flex gap-4 text-xs">

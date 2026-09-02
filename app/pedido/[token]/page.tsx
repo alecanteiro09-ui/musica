@@ -65,7 +65,7 @@ export default async function OrderPage({ params }: { params: { token: string } 
     );
   }
 
-  return <Centered>Algo deu errado com esse pedido. Escreva pra contato@versounico.com.br.</Centered>;
+  return <Centered>Algo deu errado com esse pedido. Escreva pra contato@versounicogift.online.</Centered>;
 }
 
 function Centered({ children }: { children: React.ReactNode }) {
