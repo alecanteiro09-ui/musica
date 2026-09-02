@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { X, Check, Pencil, ImagePlus, Loader2 } from "lucide-react";
 import { formatBRL } from "@/lib/utils";
 import { PHOTO_PDF_ADDON_CENTS } from "@/lib/pricing";
@@ -227,6 +228,17 @@ export function CheckoutModal({
             </button>
 
             <p className="mt-3 text-center text-xs text-ink-muted">Garantia de 7 dias · reembolso sem perguntas</p>
+            <p className="mt-2 text-center text-[11px] text-ink-muted">
+              Ao continuar, você concorda com os{" "}
+              <Link href="/termos" target="_blank" className="underline decoration-dotted hover:text-ink">
+                Termos de Uso
+              </Link>{" "}
+              e a{" "}
+              <Link href="/privacidade" target="_blank" className="underline decoration-dotted hover:text-ink">
+                Política de Privacidade
+              </Link>
+              .
+            </p>
           </>
         ) : view === "card" ? (
           <CardCheckout buyerToken={buyerToken} priceCents={finalPriceCents} />
