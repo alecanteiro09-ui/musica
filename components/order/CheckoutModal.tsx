@@ -226,15 +226,6 @@ export function CheckoutModal({
               Gerar meu Pix
             </button>
 
-            <button
-              type="button"
-              onClick={handleWantCard}
-              disabled={submitting}
-              className="mt-3 w-full text-center text-sm text-ink-muted underline decoration-dotted hover:text-ink disabled:opacity-60"
-            >
-              Prefere cartão, ou quer parcelar?
-            </button>
-
             <p className="mt-3 text-center text-xs text-ink-muted">Garantia de 7 dias · reembolso sem perguntas</p>
           </>
         ) : view === "card" ? (
