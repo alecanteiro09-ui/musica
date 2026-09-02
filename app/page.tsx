@@ -62,7 +62,7 @@ export default function HomePage() {
             >
               Criar minha música — grátis
             </Link>
-            <p className="text-sm text-ink-muted">A letra é grátis. Você decide depois de ouvir.</p>
+            <p className="text-sm text-ink-muted">A letra e um trecho cantado são grátis. Você só paga depois de ouvir.</p>
           </div>
         </div>
 

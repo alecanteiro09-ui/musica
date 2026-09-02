@@ -41,6 +41,7 @@ export function PricingIncludes() {
           <p className="mt-3 text-xs text-ink-muted">
             Não gostou da letra? Não paga nada. A cobrança só acontece depois que você já ouviu um trecho cantado.
           </p>
+          <p className="mt-1 text-xs font-medium text-ink-muted">Garantia de 7 dias · reembolso sem perguntas</p>
         </Reveal>
       </div>
     </section>

@@ -22,6 +22,7 @@ export function CheckoutModal({
   buyerToken,
   nickname,
   priceCents,
+  freePhoto,
   buyerEmail,
   initialWantsPhotoPdf,
   initialFrameSize,
@@ -31,6 +32,8 @@ export function CheckoutModal({
   nickname: string;
   /** Preço base — SEM o upsell de foto-quadro. */
   priceCents: number;
+  /** Promo de remarketing estágio 3 — o addon da foto não é cobrado. */
+  freePhoto: boolean;
   buyerEmail: string;
   /** Reflete o que já ficou salvo no pedido (ex: a pessoa marcou o quadro, saiu sem pagar e voltou depois) — sem isso o checkbox reabriria desmarcado mesmo já tendo uma foto reservada, e o preço mostrado ficaria errado. */
   initialWantsPhotoPdf: boolean;
@@ -51,7 +54,7 @@ export function CheckoutModal({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const totalPreviewCents = priceCents + (wantsQuadro ? PHOTO_PDF_ADDON_CENTS : 0);
+  const totalPreviewCents = priceCents + (wantsQuadro && !freePhoto ? PHOTO_PDF_ADDON_CENTS : 0);
   const finalPriceCents = totalPreviewCents;
 
   function pickPhoto(e: React.ChangeEvent<HTMLInputElement>) {
@@ -175,7 +178,11 @@ export function CheckoutModal({
               <span className="flex-1">
                 <span className="flex items-center justify-between">
                   <span className="text-sm font-medium text-ink">Levar o quadro pra imprimir</span>
-                  <span className="text-sm font-medium text-accent">+{formatBRL(PHOTO_PDF_ADDON_CENTS)}</span>
+                  {freePhoto ? (
+                    <span className="text-sm font-medium text-accent">De graça 🎁</span>
+                  ) : (
+                    <span className="text-sm font-medium text-accent">+{formatBRL(PHOTO_PDF_ADDON_CENTS)}</span>
+                  )}
                 </span>
                 <span className="mt-0.5 block text-xs text-ink-muted">
                   A foto tratada por IA, no tamanho certo pra emoldurar. Sai no mesmo Pix.

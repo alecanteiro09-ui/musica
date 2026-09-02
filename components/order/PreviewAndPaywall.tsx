@@ -11,6 +11,8 @@ export function PreviewAndPaywall({
   buyerToken,
   nickname,
   priceCents,
+  discountCents,
+  freePhoto,
   buyerEmail,
   lyric,
   previewAudioUrl,
@@ -19,8 +21,11 @@ export function PreviewAndPaywall({
 }: {
   buyerToken: string;
   nickname: string;
-  /** Preço base (com voz clonada, se aplicável) — SEM o upsell de foto-quadro, decidido dentro do checkout. */
+  /** Preço base (com voz clonada, se aplicável, e já com o desconto de remarketing) — SEM o upsell de foto-quadro, decidido dentro do checkout. */
   priceCents: number;
+  /** Só pra mostrar o selo "desconto aplicado" — o valor já está embutido em priceCents. */
+  discountCents: number;
+  freePhoto: boolean;
   buyerEmail: string;
   lyric: string;
   previewAudioUrl: string | null;
@@ -109,10 +114,18 @@ export function PreviewAndPaywall({
         ))}
       </ul>
 
+      {(discountCents > 0 || freePhoto) && (
+        <p className="mt-6 text-center text-xs font-medium text-accent">
+          🎁 {discountCents > 0 && `Desconto de ${formatBRL(discountCents)}`}
+          {discountCents > 0 && freePhoto && " + "}
+          {freePhoto && "quadro em PDF de graça"} já aplicados
+        </p>
+      )}
+
       <button
         type="button"
         onClick={() => setCheckoutOpen(true)}
-        className="mt-6 w-full animate-[pulse-ring_2.4s_ease-out_infinite] rounded-full bg-accent px-6 py-3 font-medium text-on-accent transition-transform hover:scale-[1.02] hover:bg-accent-dim active:scale-[0.98]"
+        className={`w-full animate-[pulse-ring_2.4s_ease-out_infinite] rounded-full bg-accent px-6 py-3 font-medium text-on-accent transition-transform hover:scale-[1.02] hover:bg-accent-dim active:scale-[0.98] ${discountCents > 0 || freePhoto ? "mt-3" : "mt-6"}`}
       >
         Quero a música completa — {formatBRL(priceCents)}
       </button>
@@ -126,6 +139,7 @@ export function PreviewAndPaywall({
           buyerToken={buyerToken}
           nickname={nickname}
           priceCents={priceCents}
+          freePhoto={freePhoto}
           buyerEmail={buyerEmail}
           initialWantsPhotoPdf={initialWantsPhotoPdf}
           initialFrameSize={initialPhotoPdfFrameSize}

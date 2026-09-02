@@ -6,7 +6,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { getLyricsProvider } from "@/lib/ai/lyrics";
 import { getMusicProvider } from "@/lib/ai/music";
 import { getEmailProvider } from "@/lib/email/provider";
-import { computeOrderPriceCents, PHOTO_PDF_ADDON_CENTS } from "@/lib/pricing";
+import { applyDiscount, computeOrderPriceCents, PHOTO_PDF_ADDON_CENTS } from "@/lib/pricing";
 import { isFrameSizeKey } from "@/lib/frameSizes";
 import type { Order, OrderLyric, OrderPhoto, OrderStatus, OrderTrack, WizardAnswers } from "@/types";
 
@@ -289,6 +289,9 @@ export async function setPhotoPdfSelection(
   if (!bundle) return { ok: false, error: "Pedido não encontrado." };
   const { order } = bundle;
 
+  const basePriceCents = applyDiscount(computeOrderPriceCents(order.wants_custom_voice), order.discount_cents);
+  const photoAddonCents = order.promo_free_photo ? 0 : PHOTO_PDF_ADDON_CENTS;
+
   const supabase = createAdminClient();
   const { error } = await supabase
     .from("orders")
@@ -296,7 +299,7 @@ export async function setPhotoPdfSelection(
       wants_photo_pdf: true,
       photo_pdf_frame_size: frameSize,
       photo_pdf_source_url: photoUrl,
-      price_cents: computeOrderPriceCents(order.wants_custom_voice) + PHOTO_PDF_ADDON_CENTS,
+      price_cents: basePriceCents + photoAddonCents,
     })
     .eq("id", order.id);
 
@@ -318,7 +321,7 @@ export async function clearPhotoPdfSelection(buyerToken: string): Promise<void> 
       wants_photo_pdf: false,
       photo_pdf_frame_size: null,
       photo_pdf_source_url: null,
-      price_cents: computeOrderPriceCents(order.wants_custom_voice),
+      price_cents: applyDiscount(computeOrderPriceCents(order.wants_custom_voice), order.discount_cents),
     })
     .eq("id", order.id);
   revalidatePath(`/pedido/${buyerToken}`);

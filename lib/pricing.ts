@@ -11,3 +11,8 @@ export const PHOTO_PDF_ADDON_CENTS = Number(process.env.PHOTO_PDF_ADDON_CENTS ??
 export function computeOrderPriceCents(wantsCustomVoice: boolean): number {
   return BASE_PRICE_CENTS + (wantsCustomVoice ? VOICE_CLONE_ADDON_CENTS : 0);
 }
+
+/** Aplica o desconto de remarketing (lib/remarketing.ts) — nunca deixa o preço negativo. */
+export function applyDiscount(baseCents: number, discountCents: number): number {
+  return Math.max(0, baseCents - discountCents);
+}

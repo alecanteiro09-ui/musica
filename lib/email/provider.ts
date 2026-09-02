@@ -20,10 +20,25 @@ export interface PhotoPdfReadyEmailInput {
   pdfUrl: string;
 }
 
+/** Sequência de carrinho abandonado — ver lib/actions/remarketing.ts. */
+export interface RemarketingEmailInput {
+  toEmail: string;
+  buyerName: string;
+  recipientNickname: string;
+  orderUrl: string;
+  unsubscribeUrl: string;
+  stage: 1 | 2 | 3;
+  /** Em centavos. 0 no estágio 1 — só nos estágios 2 e 3 tem desconto. */
+  discountCents: number;
+  /** true só no estágio 3 (última mensagem, empilha com o desconto). */
+  freePhoto: boolean;
+}
+
 export interface EmailProvider {
   sendGiftReadyEmail(input: GiftReadyEmailInput): Promise<void>;
   sendLoginCode(input: LoginCodeEmailInput): Promise<void>;
   sendPhotoPdfReadyEmail(input: PhotoPdfReadyEmailInput): Promise<void>;
+  sendRemarketingEmail(input: RemarketingEmailInput): Promise<void>;
 }
 
 /**

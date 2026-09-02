@@ -65,6 +65,11 @@ export interface Order {
   voice_task_id: string | null;
   voice_id: string | null;
   voice_error: string | null;
+  remarketing_stage: number;
+  remarketing_last_sent_at: string | null;
+  marketing_opt_out: boolean;
+  discount_cents: number;
+  promo_free_photo: boolean;
   created_at: string;
   updated_at: string;
 }

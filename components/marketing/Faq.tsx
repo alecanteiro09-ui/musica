@@ -30,6 +30,10 @@ const QUESTIONS = [
     q: "Onde ficam meus dados?",
     a: "Guardados com acesso restrito a quem tem o link do seu pedido — a gente não expõe pedido nenhum publicamente. Fotos e letra só aparecem na página-presente depois que a música é paga.",
   },
+  {
+    q: "E se eu não gostar depois de pagar?",
+    a: "Você tem 7 dias corridos pra pedir reembolso, sem precisar justificar o motivo. É só escrever pro nosso e-mail com o e-mail usado na compra.",
+  },
 ];
 
 export function Faq() {

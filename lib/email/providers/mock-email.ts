@@ -21,4 +21,12 @@ export const mockEmailProvider: EmailProvider = {
       pdfUrl: input.pdfUrl,
     });
   },
+  async sendRemarketingEmail(input) {
+    console.log(`[email/mock] remarketing estágio ${input.stage} — e-mail simulado (sem envio real)`, {
+      to: input.toEmail,
+      recipient: input.recipientNickname,
+      discountCents: input.discountCents,
+      freePhoto: input.freePhoto,
+    });
+  },
 };
