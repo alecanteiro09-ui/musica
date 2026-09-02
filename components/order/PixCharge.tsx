@@ -5,8 +5,17 @@ import { useRouter } from "next/navigation";
 import { Check, Copy, Loader2 } from "lucide-react";
 import { createPixCharge, getPaymentStatus } from "@/lib/actions/payments";
 import { formatBRL } from "@/lib/utils";
+import { trackEvent } from "@/lib/analytics/track";
 
-export function PixCharge({ buyerToken, priceCents }: { buyerToken: string; priceCents: number }) {
+export function PixCharge({
+  buyerToken,
+  priceCents,
+  buyerEmail,
+}: {
+  buyerToken: string;
+  priceCents: number;
+  buyerEmail?: string;
+}) {
   const router = useRouter();
   const [charge, setCharge] = useState<{ brCode: string; qrCodeImageUrl: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -14,8 +23,17 @@ export function PixCharge({ buyerToken, priceCents }: { buyerToken: string; pric
 
   useEffect(() => {
     createPixCharge(buyerToken)
-      .then(setCharge)
+      .then((c) => {
+        setCharge(c);
+        trackEvent("AddPaymentInfo", {
+          valueCents: priceCents,
+          contentName: "Música personalizada — Pix",
+          email: buyerEmail,
+          externalId: buyerToken,
+        });
+      })
       .catch((err) => setError(err instanceof Error ? err.message : "Não deu pra gerar o Pix agora."));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [buyerToken]);
 
   useEffect(() => {

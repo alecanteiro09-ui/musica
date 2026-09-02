@@ -63,7 +63,15 @@ export default async function OrderPage({ params }: { params: { token: string } 
   if (order.status === "paid" || order.status === "delivered") {
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
     return (
-      <UnlockedSuccess buyerToken={order.buyer_token} giftToken={order.gift_token} photos={photos} siteUrl={siteUrl} />
+      <UnlockedSuccess
+        orderId={order.id}
+        buyerToken={order.buyer_token}
+        giftToken={order.gift_token}
+        priceCents={order.price_cents}
+        buyerEmail={order.buyer_email}
+        photos={photos}
+        siteUrl={siteUrl}
+      />
     );
   }
 

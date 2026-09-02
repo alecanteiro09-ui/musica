@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { Play, Pause } from "lucide-react";
 import { parseTaggedLyric, formatBRL } from "@/lib/utils";
+import { trackEvent } from "@/lib/analytics/track";
 import { CheckoutModal } from "./CheckoutModal";
 
 const PREVIEW_CAP_SECONDS = 40;
@@ -57,6 +58,16 @@ export function PreviewAndPaywall({
   }
 
   const blocks = parseTaggedLyric(lyric);
+
+  function openCheckout() {
+    trackEvent("AddToCart", {
+      valueCents: priceCents,
+      contentName: `Música para ${nickname || "alguém especial"}`,
+      email: buyerEmail,
+      externalId: buyerToken,
+    });
+    setCheckoutOpen(true);
+  }
 
   return (
     <div className="mx-auto max-w-xl px-6 py-16">
@@ -124,7 +135,7 @@ export function PreviewAndPaywall({
 
       <button
         type="button"
-        onClick={() => setCheckoutOpen(true)}
+        onClick={openCheckout}
         className={`w-full animate-[pulse-ring_2.4s_ease-out_infinite] rounded-full bg-accent px-6 py-3 font-medium text-on-accent transition-transform hover:scale-[1.02] hover:bg-accent-dim active:scale-[0.98] ${discountCents > 0 || freePhoto ? "mt-3" : "mt-6"}`}
       >
         Quero a música completa — {formatBRL(priceCents)}

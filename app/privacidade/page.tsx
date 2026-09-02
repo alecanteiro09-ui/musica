@@ -62,6 +62,13 @@ export default function PrivacidadePage() {
             <li>
               <strong className="text-ink">Resend</strong> — envio do e-mail de confirmação.
             </li>
+            <li>
+              <strong className="text-ink">Meta (Facebook/Instagram), TikTok e Google Ads</strong> — medição de
+              desempenho dos nossos anúncios. Recebem apenas dados técnicos da visita (como endereço IP e
+              identificadores de anúncio) e, quando você compra, seu e-mail e telefone de forma criptografada
+              (hash), que essas empresas não conseguem reverter pro dado original — usados só pra saber se um
+              anúncio resultou em compra, nunca pra te identificar em outro contexto.
+            </li>
           </ul>
           <p className="mt-2">Não vendemos nem alugamos seus dados pra ninguém.</p>
         </Section>
@@ -95,10 +102,13 @@ export default function PrivacidadePage() {
           </p>
         </Section>
 
-        <Section title="8. Cookies">
+        <Section title="8. Cookies e pixels de anúncio">
           <p>
-            Usamos apenas o mínimo necessário pro site funcionar (por exemplo, lembrar o andamento do seu
-            pedido enquanto você preenche o formulário). Não usamos cookies de rastreamento publicitário.
+            Além do mínimo necessário pro site funcionar, usamos os pixels de mensuração da Meta, da TikTok e do
+            Google Ads pra entender se nossos anúncios estão funcionando (por exemplo, se alguém que clicou num
+            anúncio depois comprou uma música). Isso grava cookies próprios dessas empresas no seu navegador.
+            Você pode bloquear esses cookies nas configurações do seu navegador a qualquer momento, sem que isso
+            afete a compra ou a entrega da sua música.
           </p>
         </Section>
 

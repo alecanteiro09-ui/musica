@@ -4,17 +4,26 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import QRCode from "qrcode";
 import { ImagePlus, Loader2 } from "lucide-react";
 import { uploadOrderPhoto } from "@/lib/actions/photos";
+import { trackEvent } from "@/lib/analytics/track";
 import { PhotoPdfStatus } from "./PhotoPdfStatus";
 import type { OrderPhoto } from "@/types";
 
 export function UnlockedSuccess({
+  orderId,
   buyerToken,
   giftToken,
+  priceCents,
+  buyerEmail,
   photos,
   siteUrl,
 }: {
+  /** Usado só pra montar o event_id de Purchase (purchase_<orderId>) — precisa ser fixo pra deduplicar entre o pixel do navegador e o repasse server-side já feito pelo webhook (lib/payments/confirm.ts) e pra não contar a mesma compra 2x se essa tela recarregar. */
+  orderId: string;
   buyerToken: string;
   giftToken: string;
+  /** Valor de fato pago (já com desconto e upsell de foto, se houver). */
+  priceCents: number;
+  buyerEmail: string | null;
   photos: OrderPhoto[];
   /** Vem de NEXT_PUBLIC_SITE_URL (Server Component) — nunca ler de window.location aqui:
    *  isso rende diferente no servidor (sem window) e no cliente, e quebra a hidratação. */
@@ -31,6 +40,24 @@ export function UnlockedSuccess({
     if (!giftUrl) return;
     QRCode.toDataURL(giftUrl, { margin: 1, width: 240 }).then(setQr);
   }, [giftUrl]);
+
+  // Purchase também é disparado server-side pelo webhook da Woovi assim que
+  // o pagamento confirma (lib/payments/confirm.ts) — esse aqui é o pixel do
+  // navegador, com o MESMO event_id, pra Meta/TikTok deduplicarem os dois.
+  // Fica em dobro de propósito: o servidor garante que a compra é contada
+  // mesmo que a pessoa nunca abra essa tela (ex: pagou e fechou a aba); o
+  // pixel do navegador garante a melhor janela de atribuição possível
+  // quando ela abre.
+  useEffect(() => {
+    trackEvent("Purchase", {
+      eventId: `purchase_${orderId}`,
+      valueCents: priceCents,
+      contentName: "Música personalizada",
+      email: buyerEmail,
+      externalId: buyerToken,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orderId]);
 
   function onPickFile() {
     fileInput.current?.click();

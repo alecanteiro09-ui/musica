@@ -2,6 +2,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { getEmailProvider } from "@/lib/email/provider";
 import { PHOTO_PDF_ADDON_CENTS } from "@/lib/pricing";
 import { sendSaleNotificationSafely } from "@/lib/notify/ntfy";
+import { trackServerEvent } from "@/lib/tracking/provider";
 
 /**
  * Confirma um pagamento Pix e libera o pedido. Chamado tanto pelo webhook
@@ -51,8 +52,39 @@ export async function confirmPixPayment(correlationId: string, rawPayload: unkno
   await createPhotoPdfOrderIfRequested(payment.order_id);
   await sendGiftReadyEmailSafely(payment.order_id);
   await sendSaleNotificationSafely(payment.order_id, payment.amount_cents, payment.method);
+  await sendPurchaseTrackingSafely(payment.order_id, payment.amount_cents);
 
   return { ok: true, alreadyConfirmed: false };
+}
+
+/**
+ * Fonte de verdade do evento de Purchase pra Meta CAPI e TikTok Events API —
+ * dispara direto do webhook, sem depender do comprador abrir a tela de
+ * sucesso (UnlockedSuccess dispara o mesmo evento, com o mesmo event_id
+ * "purchase_<orderId>", pelo pixel do navegador; os dois se deduplicam nos
+ * dois provedores). Isso garante que TODA compra confirmada é contada, até
+ * a de quem pagou o Pix e nunca voltou pro site.
+ */
+async function sendPurchaseTrackingSafely(orderId: string, amountCents: number) {
+  try {
+    const supabase = createAdminClient();
+    const { data: order } = await supabase.from("orders").select("buyer_email, buyer_token").eq("id", orderId).single();
+    if (!order) return;
+
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+    await trackServerEvent({
+      eventName: "Purchase",
+      eventId: `purchase_${orderId}`,
+      eventSourceUrl: `${siteUrl}/pedido/${order.buyer_token}`,
+      email: order.buyer_email,
+      externalId: order.buyer_token,
+      valueCents: amountCents,
+      currency: "BRL",
+      contentName: "Música personalizada",
+    });
+  } catch (err) {
+    console.error("[tracking] falha ao enviar evento de compra", { orderId, err });
+  }
 }
 
 /**

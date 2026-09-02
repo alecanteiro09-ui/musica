@@ -6,6 +6,7 @@ import { CreditCard, Loader2, ExternalLink } from "lucide-react";
 import { formatBRL } from "@/lib/utils";
 import { createCardCharge } from "@/lib/actions/payments";
 import { getPaymentStatus } from "@/lib/actions/payments";
+import { trackEvent } from "@/lib/analytics/track";
 
 const CPF_ONLY_DIGITS = (v: string) => v.replace(/\D/g, "");
 
@@ -15,7 +16,15 @@ const CPF_ONLY_DIGITS = (v: string) => v.replace(/\D/g, "");
  * pela própria Woovi — o número do cartão nunca passa pelo nosso servidor.
  * Confirma sozinho pelo mesmo webhook do Pix (mesmo correlationId).
  */
-export function CardCheckout({ buyerToken, priceCents }: { buyerToken: string; priceCents: number }) {
+export function CardCheckout({
+  buyerToken,
+  priceCents,
+  buyerEmail,
+}: {
+  buyerToken: string;
+  priceCents: number;
+  buyerEmail?: string;
+}) {
   const router = useRouter();
   const [step, setStep] = useState<"form" | "waiting">("form");
   const [paymentLinkUrl, setPaymentLinkUrl] = useState<string | null>(null);
@@ -65,6 +74,13 @@ export function CardCheckout({ buyerToken, priceCents }: { buyerToken: string; p
         address: { zipcode: zipcode.trim(), street: street.trim(), number: number.trim(), neighborhood: neighborhood.trim(), city: city.trim(), state: state.trim() },
       });
       setPaymentLinkUrl(result.paymentLinkUrl);
+      trackEvent("AddPaymentInfo", {
+        valueCents: priceCents,
+        contentName: "Música personalizada — Cartão",
+        email: buyerEmail,
+        phone: phone.trim(),
+        externalId: buyerToken,
+      });
       window.open(result.paymentLinkUrl, "_blank", "noopener,noreferrer");
       setStep("waiting");
     } catch (err) {

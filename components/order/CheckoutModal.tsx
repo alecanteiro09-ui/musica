@@ -248,9 +248,9 @@ export function CheckoutModal({
             </p>
           </>
         ) : view === "card" ? (
-          <CardCheckout buyerToken={buyerToken} priceCents={finalPriceCents} />
+          <CardCheckout buyerToken={buyerToken} priceCents={finalPriceCents} buyerEmail={email} />
         ) : (
-          <PixCharge buyerToken={buyerToken} priceCents={finalPriceCents} />
+          <PixCharge buyerToken={buyerToken} priceCents={finalPriceCents} buyerEmail={email} />
         )}
       </div>
     </div>
