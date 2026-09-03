@@ -28,6 +28,13 @@ export const wooviProvider: PaymentProvider = {
     const appId = process.env.WOOVI_APP_ID;
     if (!appId) throw new Error("WOOVI_APP_ID não configurado.");
 
+    const sanitized = sanitizeComment(input.comment);
+    console.log("[woovi/debug] comment raw vs sanitized", {
+      raw: input.comment,
+      rawCodePoints: [...input.comment].map((c) => c.codePointAt(0)?.toString(16)),
+      sanitized,
+    });
+
     const res = await fetch(`${WOOVI_API_BASE}/charge`, {
       method: "POST",
       headers: {
@@ -37,7 +44,7 @@ export const wooviProvider: PaymentProvider = {
       body: JSON.stringify({
         correlationID: input.correlationId,
         value: input.amountCents,
-        comment: sanitizeComment(input.comment),
+        comment: sanitized,
         customer: {
           name: input.customer.name,
           email: input.customer.email,
