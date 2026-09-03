@@ -105,6 +105,34 @@ function genreNegativeTags(genre: string): string | undefined {
   return map[normalize(genre)];
 }
 
+/**
+ * Testado ao vivo em produção: mandar só a palavra do gênero (ex: "Forró")
+ * no `style` NÃO bastou — mesmo com vocalGender + negativeTags certos, a
+ * música saiu com cara de sertanejo (bug real reportado pelo usuário). A
+ * palavra sozinha é um rótulo fraco; instrumentação e ritmo descritos em
+ * palavras são um sinal muito mais forte pra um modelo de áudio generativo
+ * (ele "entende" som, não taxonomia de gênero). Por isso cada gênero nosso
+ * vira uma descrição concreta de instrumentos/andamento, não só o nome.
+ */
+function genreStyleDetail(genre: string): string {
+  const map: Record<string, string> = {
+    gospel: "gospel, contemporary Christian worship, piano-led, soaring layered vocal harmonies",
+    "pop romântico": "romantic Brazilian pop ballad, piano and strings, modern radio pop production",
+    sertanejo: "sertanejo sofrência, twin acoustic guitars (viola caipira), Brazilian country ballad",
+    "sertanejo universitário": "sertanejo universitário, acoustic guitar duo, contemporary Brazilian country-pop, sing-along chorus",
+    mpb: "MPB, nylon-string acoustic guitar, sophisticated Brazilian songwriting, jazzy chords",
+    "pagode / samba": "pagode, cavaquinho, pandeiro and tantã hand percussion, samba groove, call-and-response backing vocals",
+    "piseiro / arrocha": "piseiro, electronic accordion riff over a programmed zabumba beat, arrocha-style slow romantic groove",
+    forró: "forró pé-de-serra, accordion (sanfona) lead melody, zabumba bass drum, triângulo steel triangle, driving 2-step forró rhythm — NOT sertanejo, NOT acoustic-guitar-led",
+    "bossa nova": "bossa nova, soft nylon-string guitar, brushed drums, intimate jazzy Rio de Janeiro café atmosphere",
+    rock: "Brazilian rock, electric guitars, driving drums and bass",
+    reggae: "reggae, offbeat guitar skank, laid-back bassline groove",
+    "rap / hip-hop": "Brazilian rap, hip-hop beat, rhythmic spoken-sung flow",
+    infantil: "children's song, playful bright melody, simple sing-along arrangement",
+  };
+  return map[normalize(genre)] ?? genre;
+}
+
 function wordsFromLyric(lyric: string): string[] {
   return lyric
     .split("\n")
@@ -153,13 +181,12 @@ async function downloadAndStore(url: string, path: string): Promise<void> {
 export const realMusicProvider: MusicProvider = {
   async generateSong(input: GenerateSongInput) {
     const styleParts = [
-      input.genre || "pop",
+      genreStyleDetail(input.genre || "pop romântico"),
       voiceLabel(input.voicePreference),
       "Brazilian Portuguese",
       "warm and intimate lead vocal",
       "radio-quality mix",
       "emotionally sincere delivery",
-      "acoustic-leaning modern production",
       "clear diction",
       input.mood ? moodLabel(input.mood) : null,
     ].filter(Boolean);
@@ -200,8 +227,8 @@ export const realMusicProvider: MusicProvider = {
         // do gênero/clima "escorregar" pro genérico) sem travar a
         // musicalidade — se algum dia a música soar mecânica/repetitiva,
         // esses dois valores são os primeiros a ajustar pra baixo.
-        styleWeight: 0.65,
-        weirdnessConstraint: 0.3,
+        styleWeight: 0.75,
+        weirdnessConstraint: 0.25,
         ...(negativeTags ? { negativeTags } : {}),
         ...(vocalGender ? { vocalGender } : {}),
         // voiceId clonado (upsell "cantar com a sua voz") — ver lib/ai/voiceClone.ts.
