@@ -6,6 +6,7 @@ import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { Pixels } from "@/components/analytics/Pixels";
 import { PageViewTracker } from "@/components/analytics/PageViewTracker";
+import { HeatmapTracker } from "@/components/analytics/HeatmapTracker";
 
 const newsreader = Newsreader({
   subsets: ["latin"],
@@ -45,6 +46,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Pixels />
         <Suspense fallback={null}>
           <PageViewTracker />
+          <HeatmapTracker />
         </Suspense>
         <Header />
         <main>{children}</main>
