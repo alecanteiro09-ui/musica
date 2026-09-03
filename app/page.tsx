@@ -64,11 +64,26 @@ export default function HomePage() {
             </Link>
             <p className="text-sm text-ink-muted">A letra e um trecho cantado são grátis. Você só paga depois de ouvir.</p>
           </div>
+          <p className="mt-3 text-xs font-medium text-ink-muted">🔒 Garantia de 7 dias · reembolso sem perguntas</p>
         </div>
 
         <div className="relative space-y-4">
           <ReactionMoment />
           <DemoPreview />
+          {/* A maioria de quem chega pelo anúncio ouve o trecho de exemplo aqui e
+             nunca rola a página nem volta pro botão lá em cima (dado real do
+             /admin/heatmap: só ~12% dos acessos mobile passam de 5% de rolagem,
+             mesmo ficando ~45s na página em média) — então o próximo passo
+             precisa aparecer bem aqui, logo depois do áudio, não só no topo. */}
+          <div className="text-center">
+            <Link
+              href="/criar"
+              className="inline-block w-full rounded-full bg-accent px-6 py-3 font-medium text-on-accent shadow-[0_10px_30px_-10px_rgba(255,122,84,0.55)] transition-all hover:scale-[1.03] hover:bg-accent-dim active:scale-[0.98] sm:w-auto"
+            >
+              Fazer a música de vocês — grátis pra começar
+            </Link>
+            <p className="mt-2 text-xs text-ink-muted">Sem cartão agora · garantia de 7 dias</p>
+          </div>
         </div>
       </section>
 
