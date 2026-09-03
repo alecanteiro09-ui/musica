@@ -3,6 +3,20 @@ import type { CardCharge, CreateCardChargeInput, CreatePixChargeInput, PaymentPr
 const WOOVI_API_BASE = "https://api.woovi.com/api/v1";
 
 /**
+ * A Woovi rejeita emoji no campo "comment" (erro real visto em produção:
+ * comprador colocou emoji no apelido de quem recebe, ex: "Alessandra ❤️",
+ * que vai direto pro comentário do Pix). Remove só emoji — mantém acento
+ * normal (ú, ã, ç...), que não é o problema.
+ */
+function sanitizeComment(text: string): string {
+  return text
+    .replace(/\p{Extended_Pictographic}/gu, "")
+    .replace(/[\u{FE0F}\u{200D}]/gu, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+/**
  * Integração real com a API Pix da Woovi (REST direto, sem SDK — evita fixar
  * uma versão de pacote que eu não posso verificar neste ambiente). Documentação:
  * https://developers.woovi.com — confirme o payload/headers exatos contra a
@@ -23,7 +37,7 @@ export const wooviProvider: PaymentProvider = {
       body: JSON.stringify({
         correlationID: input.correlationId,
         value: input.amountCents,
-        comment: input.comment,
+        comment: sanitizeComment(input.comment),
         customer: {
           name: input.customer.name,
           email: input.customer.email,
@@ -70,7 +84,7 @@ export const wooviProvider: PaymentProvider = {
       body: JSON.stringify({
         correlationID: input.correlationId,
         value: input.amountCents,
-        comment: input.comment,
+        comment: sanitizeComment(input.comment),
         type: "PIX_CREDIT",
         customer: {
           name: input.customer.name,
