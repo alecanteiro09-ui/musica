@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import QRCode from "qrcode";
 import { ImagePlus, Loader2 } from "lucide-react";
-import { uploadOrderPhoto } from "@/lib/actions/photos";
+import { uploadPhotoFile } from "@/lib/photos/uploadPhotoFile";
 import { trackEvent } from "@/lib/analytics/track";
 import { PhotoPdfStatus } from "./PhotoPdfStatus";
 import type { OrderPhoto } from "@/types";
@@ -67,10 +67,8 @@ export function UnlockedSuccess({
     const file = e.target.files?.[0];
     if (!file) return;
     setUploadError(null);
-    const formData = new FormData();
-    formData.set("photo", file);
     startTransition(async () => {
-      const result = await uploadOrderPhoto(buyerToken, formData);
+      const result = await uploadPhotoFile(buyerToken, file);
       if (!result.ok) setUploadError(result.error);
     });
     e.target.value = "";

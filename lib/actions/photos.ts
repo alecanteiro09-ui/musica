@@ -5,11 +5,16 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { getOrderByBuyerToken } from "./orders";
 
 const MAX_PHOTOS = 12;
-// Foto de celular moderna passa fácil de 8MB (12MP+ sem compressão forte) —
-// bug real encontrado em produção: uploads reais estouravam o limite padrão
-// de 1MB do Next pra Server Actions (ver experimental.serverActions no
-// next.config.mjs) antes mesmo de chegar aqui. Com isso corrigido, o limite
-// da aplicação em si pode ser bem mais folgado.
+// Foto de celular moderna passa fácil de 8MB (12MP+ sem compressão forte).
+// Bug real encontrado em produção: um upload de iPhone estourava com
+// FUNCTION_PAYLOAD_TOO_LARGE (413) antes mesmo de chegar no nosso código —
+// é um limite de PLATAFORMA da Vercel pro corpo de uma Serverless Function
+// (não configurável via next.config.mjs, que só ajusta o limite do próprio
+// Next). Por isso o arquivo não passa mais pelo corpo da Server Action: o
+// browser sobe direto pro Supabase Storage usando uma signed upload URL
+// (preparePhotoUpload gera a URL, confirmPhotoUpload só registra o
+// resultado — ver lib/photos/uploadPhotoFile.ts pro fluxo completo no
+// client). Esse limite continua sendo o teto de tamanho aceito.
 const MAX_FILE_BYTES = 15 * 1024 * 1024;
 
 const EXT_BY_MIME: Record<string, string> = {
@@ -21,37 +26,59 @@ const EXT_BY_MIME: Record<string, string> = {
   "image/gif": "gif",
 };
 
-/** Sobe uma foto pro presente (bucket público "photos") — usado tanto no checkout (foto do quadro) quanto na tela de sucesso, depois do pagamento. */
-export async function uploadOrderPhoto(buyerToken: string, formData: FormData): Promise<{ ok: true; imageUrl: string } | { ok: false; error: string }> {
+export interface PreparePhotoUploadInput {
+  fileName: string;
+  contentType: string;
+  fileSize: number;
+}
+
+export type PreparePhotoUploadResult =
+  | { ok: true; path: string; token: string; contentType: string }
+  | { ok: false; error: string };
+
+/** 1ª etapa do upload: valida o pedido/arquivo e devolve uma signed upload URL do Supabase Storage — o arquivo em si sobe direto do browser pro Storage, nunca passa pelo corpo desta Server Action. */
+export async function preparePhotoUpload(buyerToken: string, input: PreparePhotoUploadInput): Promise<PreparePhotoUploadResult> {
   try {
     const bundle = await getOrderByBuyerToken(buyerToken);
     if (!bundle) return { ok: false, error: "Pedido não encontrado." };
     const { order, photos } = bundle;
 
     if (photos.length >= MAX_PHOTOS) return { ok: false, error: `Máximo de ${MAX_PHOTOS} fotos por presente.` };
-
-    const file = formData.get("photo");
-    if (!(file instanceof File) || file.size === 0) return { ok: false, error: "Nenhuma imagem enviada." };
-    if (file.size > MAX_FILE_BYTES) return { ok: false, error: "Imagem muito grande (máx. 15MB)." };
+    if (!input.fileSize) return { ok: false, error: "Nenhuma imagem enviada." };
+    if (input.fileSize > MAX_FILE_BYTES) return { ok: false, error: "Imagem muito grande (máx. 15MB)." };
 
     const supabase = createAdminClient();
-    // Alguns navegadores/apps de câmera não preenchem file.type — sem isso
-    // o storage guarda como application/octet-stream e a foto não abre
+    // Alguns navegadores/apps de câmera não preenchem o content-type — sem
+    // isso o storage guarda como application/octet-stream e a foto não abre
     // inline em lugar nenhum (baixa como arquivo em vez de mostrar).
-    const contentType = file.type || "image/jpeg";
-    const nameExt = file.name.split(".").pop()?.toLowerCase();
+    const contentType = input.contentType || "image/jpeg";
+    const nameExt = input.fileName.split(".").pop()?.toLowerCase();
     const ext = (nameExt && nameExt.length <= 5 ? nameExt : null) || EXT_BY_MIME[contentType] || "jpg";
     const path = `${order.id}/${crypto.randomUUID()}.${ext}`;
 
-    const { error: uploadError } = await supabase.storage.from("photos").upload(path, file, {
-      contentType,
-      upsert: false,
-    });
-    if (uploadError) {
-      console.error("[photos] falha ao subir pro storage", { buyerToken, message: uploadError.message });
-      return { ok: false, error: "Não deu pra subir essa foto agora. Tenta de novo." };
+    const { data, error } = await supabase.storage.from("photos").createSignedUploadUrl(path);
+    if (error || !data) {
+      console.error("[photos] falha ao criar signed upload url", { buyerToken, message: error?.message });
+      return { ok: false, error: "Não deu pra preparar o envio dessa foto agora. Tenta de novo." };
     }
 
+    return { ok: true, path, token: data.token, contentType };
+  } catch (err) {
+    console.error("[photos] erro inesperado ao preparar upload", { buyerToken, err });
+    return { ok: false, error: "Não deu pra subir essa foto agora. Tenta de novo." };
+  }
+}
+
+/** 2ª etapa: chamada depois que o browser já subiu o arquivo direto pro Storage — só registra o resultado no pedido. */
+export async function confirmPhotoUpload(buyerToken: string, path: string): Promise<{ ok: true; imageUrl: string } | { ok: false; error: string }> {
+  try {
+    const bundle = await getOrderByBuyerToken(buyerToken);
+    if (!bundle) return { ok: false, error: "Pedido não encontrado." };
+    const { order, photos } = bundle;
+
+    if (!path.startsWith(`${order.id}/`)) return { ok: false, error: "Upload inválido." };
+
+    const supabase = createAdminClient();
     const { data: publicUrl } = supabase.storage.from("photos").getPublicUrl(path);
 
     const { error: insertError } = await supabase.from("order_photos").insert({
@@ -67,7 +94,7 @@ export async function uploadOrderPhoto(buyerToken: string, formData: FormData): 
     revalidatePath(`/pedido/${buyerToken}`);
     return { ok: true, imageUrl: publicUrl.publicUrl };
   } catch (err) {
-    console.error("[photos] erro inesperado no upload", { buyerToken, err });
-    return { ok: false, error: "Não deu pra subir essa foto agora. Tenta de novo." };
+    console.error("[photos] erro inesperado ao confirmar upload", { buyerToken, err });
+    return { ok: false, error: "Não deu pra salvar essa foto agora. Tenta de novo." };
   }
 }

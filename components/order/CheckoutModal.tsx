@@ -7,7 +7,7 @@ import { formatBRL } from "@/lib/utils";
 import { PHOTO_PDF_ADDON_CENTS } from "@/lib/pricing";
 import { FRAME_SIZES, isFrameSizeKey, type FrameSizeKey } from "@/lib/frameSizes";
 import { updateBuyerEmail, setPhotoPdfSelection, clearPhotoPdfSelection } from "@/lib/actions/orders";
-import { uploadOrderPhoto } from "@/lib/actions/photos";
+import { uploadPhotoFile } from "@/lib/photos/uploadPhotoFile";
 import { PixCharge } from "./PixCharge";
 import { CardCheckout } from "./CardCheckout";
 
@@ -76,9 +76,7 @@ export function CheckoutModal({
     }
 
     if (wantsQuadro && photoFile) {
-      const formData = new FormData();
-      formData.set("photo", photoFile);
-      const upload = await uploadOrderPhoto(buyerToken, formData);
+      const upload = await uploadPhotoFile(buyerToken, photoFile);
       if (!upload.ok) throw new Error(upload.error);
       const selection = await setPhotoPdfSelection(buyerToken, frameSize, upload.imageUrl);
       if (!selection.ok) throw new Error(selection.error || "Não deu pra reservar a foto do quadro.");
