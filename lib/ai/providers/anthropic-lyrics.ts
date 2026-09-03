@@ -46,6 +46,12 @@ function extractText(message: Anthropic.Message): string {
   return block && block.type === "text" ? block.text.trim() : "";
 }
 
+/** O modelo às vezes embrulha o JSON pedido em ```json ... ``` (bug real visto em produção: a tela mostrava o bloco cru, cercas incluídas, em vez do refrão). Tira a cerca antes de tentar parsear. */
+function stripCodeFence(text: string): string {
+  const match = text.trim().match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+  return match ? match[1] : text;
+}
+
 /** Garante que a letra tem pelo menos as tags essenciais; se faltar, envolve o texto num [Verse 1]/[Chorus] mínimo. */
 function repairTags(content: string): string {
   if (/\[Chorus\]/i.test(content) && /\[Verse/i.test(content)) return content;
@@ -106,11 +112,11 @@ Detalhe marcante: ${input.funDetail}
 ${input.chorusHint ? `Frase que precisa aparecer: "${input.chorusHint}"` : ""}
 ${input.mood ? `Clima emocional pedido: ${input.mood}.` : ""}
 ${input.namesToInclude ? `Se fizer sentido, cite também: ${input.namesToInclude}.` : ""}
-Responda estritamente como JSON: {"optionA": "...", "optionB": "..."} (linhas separadas por \\n).`;
+Responda estritamente como JSON puro, sem markdown, sem crase, sem texto antes ou depois: {"optionA": "...", "optionB": "..."} (linhas separadas por \\n).`;
 
     function parse(text: string) {
       try {
-        const parsed = JSON.parse(text);
+        const parsed = JSON.parse(stripCodeFence(text));
         return { optionA: String(parsed.optionA), optionB: String(parsed.optionB) };
       } catch {
         const [a, b] = text.split(/\n{2,}/);
@@ -165,7 +171,7 @@ ${input.chosenChorus}`;
         system: SYSTEM_PROMPT,
         messages,
       });
-      return repairTags(extractText(msg));
+      return repairTags(stripCodeFence(extractText(msg)));
     }
 
     const first = await ask([{ role: "user", content: userPrompt }]);
