@@ -177,6 +177,14 @@ export const realMusicProvider: MusicProvider = {
     // forçar vocalGender junto poderia entrar em conflito com ela.
     const vocalGender = input.voiceId ? undefined : vocalGenderParam(input.voicePreference);
 
+    console.log("[suno/debug] parametros de genero/voz enviados", {
+      genreInput: input.genre,
+      voicePreferenceInput: input.voicePreference,
+      style,
+      vocalGender,
+      negativeTags,
+    });
+
     const res = await fetch(`${KIE_BASE}/generate`, {
       method: "POST",
       headers: authHeaders(),
