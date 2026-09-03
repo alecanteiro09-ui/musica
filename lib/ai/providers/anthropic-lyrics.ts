@@ -23,6 +23,13 @@ Como você trabalha:
   contar a história toda) — a letra deve ter movimento, não ser uma lista estática de elogios.
 - Nunca invente fatos que não foram contados. Se faltar detalhe, trabalhe com o que veio, mas
   não genérico — prefira uma imagem pequena e real a uma frase grande e vazia.
+- Use pelo menos uma palavra ou expressão exata (não parafraseada) tirada da história ou do
+  detalhe marcante que a pessoa escreveu, em algum ponto da letra — isso ancora a música na
+  vida real dela, não numa versão genérica que serviria pra qualquer pedido parecido.
+- O gênero, a voz escolhida e o clima emocional pedidos não são só metadado: eles têm que se
+  ouvir na letra. Vocabulário, imagens e cadência de uma letra de forró não podem soar como as
+  de uma balada pop lenta, e vice-versa — escreva pensando em como aquele gênero específico
+  fraseia e respira.
 - Português do Brasil, tom sincero, zero clichê piegas ("você ilumina meu mundo", "pra sempre
   ao seu lado" e afins são proibidos).
 - Estruture a letra completa com tags de seção exatamente neste formato, cada uma em sua
@@ -73,7 +80,7 @@ Responda estritamente como JSON: {"optionA": "...", "optionB": "..."} (linhas se
   async generateFullLyric(input) {
     const msg = await client().messages.create({
       model: "claude-sonnet-4-5",
-      max_tokens: 900,
+      max_tokens: 1100,
       system: SYSTEM_PROMPT,
       messages: [
         {
