@@ -52,7 +52,7 @@ function repairTags(content: string): string {
   return `[Verse 1]\n${content}`;
 }
 
-// Marcas de acento combinantes (ex: o ~ separado do a em "ã" depois de
+// Marcas de acento combinantes (ex: o til separado do "a" em "ã" depois de
 // normalize("NFD")) — removidas pra comparar palavras sem depender de acento.
 const COMBINING_MARKS = /[̀-ͯ]/g;
 
@@ -70,12 +70,12 @@ function normalizeWords(text: string): string[] {
  * Detecta o modo de falha real que a gente pegou em teste: em vez de citar um
  * fragmento curto (o que o SYSTEM_PROMPT pede), o modelo às vezes tenta colar
  * a frase inteira que a pessoa escreveu e corta no meio da palavra ao bater
- * no limite da linha (bug real reproduzido 3x em produção com a mesma
- * história de teste, mesmo já com a instrução reforçada duas vezes). Em vez
- * de confiar só no texto do prompt (nem sempre seguido à risca), checa de
+ * no limite da linha (bug real reproduzido várias vezes em produção com a
+ * mesma história de teste, mesmo já com a instrução reforçada). Em vez de
+ * confiar só no texto do prompt (nem sempre seguido à risca), checa de
  * verdade: se um trecho de 7+ palavras seguidas da letra bate literalmente
  * com um trecho da história/detalhe original, é sinal de cópia longa demais
- * — o chamador pode usar isso pra pedir uma nova geração.
+ * — o chamador pode usar isso pra pedir uma correção.
  */
 function hasLongVerbatimCopy(generated: string, sources: string[], minRun = 7): boolean {
   const genWords = normalizeWords(generated);
@@ -94,34 +94,21 @@ function hasLongVerbatimCopy(generated: string, sources: string[], minRun = 7): 
   return false;
 }
 
+const COPY_CORRECTION =
+  'Isso colou um trecho longo da história/detalhe quase palavra por palavra, e uma linha ficou cortada no meio de uma palavra. Reescreva SEM copiar frases inteiras do que a pessoa escreveu — abra cada verso/opção com uma imagem nas SUAS próprias palavras, e use no máximo uma expressão de 2 a 5 palavras da história original. Responda de novo no MESMO formato pedido antes (nada de comentário extra).';
+
 export const anthropicLyricsProvider: LyricsProvider = {
   async generateChorusOptions(input: WizardAnswers) {
     const sources = [input.story, input.funDetail];
-
-    async function attempt() {
-      const msg = await client().messages.create({
-        model: "claude-sonnet-4-5",
-        // Era 400 — curto demais depois que a instrução de citar uma frase
-        // literal do cliente entrou no SYSTEM_PROMPT: a opção A saiu cortada
-        // no meio de uma palavra em teste real ("...sempre er"), porque o
-        // texto batia o teto antes do JSON fechar. 700 dá folga confortável
-        // pras duas opções de 4 linhas + a citação literal + o wrapper JSON.
-        max_tokens: 700,
-        system: SYSTEM_PROMPT,
-        messages: [
-          {
-            role: "user",
-            content: `Escreva DUAS opções de refrão (4 linhas cada, sem tags) para uma música ${input.genre} sobre ${input.nickname} (${input.relationship}), ocasião: ${input.occasion}.
+    const userPrompt = `Escreva DUAS opções de refrão (4 linhas cada, sem tags) para uma música ${input.genre} sobre ${input.nickname} (${input.relationship}), ocasião: ${input.occasion}.
 História: ${input.story}
 Detalhe marcante: ${input.funDetail}
 ${input.chorusHint ? `Frase que precisa aparecer: "${input.chorusHint}"` : ""}
 ${input.mood ? `Clima emocional pedido: ${input.mood}.` : ""}
 ${input.namesToInclude ? `Se fizer sentido, cite também: ${input.namesToInclude}.` : ""}
-Responda estritamente como JSON: {"optionA": "...", "optionB": "..."} (linhas separadas por \\n).`,
-          },
-        ],
-      });
-      const text = extractText(msg);
+Responda estritamente como JSON: {"optionA": "...", "optionB": "..."} (linhas separadas por \\n).`;
+
+    function parse(text: string) {
       try {
         const parsed = JSON.parse(text);
         return { optionA: String(parsed.optionA), optionB: String(parsed.optionB) };
@@ -131,38 +118,64 @@ Responda estritamente como JSON: {"optionA": "...", "optionB": "..."} (linhas se
       }
     }
 
-    const first = await attempt();
+    async function ask(messages: Anthropic.MessageParam[]) {
+      const msg = await client().messages.create({
+        model: "claude-sonnet-4-5",
+        // Era 400 — curto demais depois que a instrução de citar uma frase
+        // literal do cliente entrou no SYSTEM_PROMPT: a opção A saiu cortada
+        // no meio de uma palavra em teste real ("...sempre er"), porque o
+        // texto batia o teto antes do JSON fechar. 700 dá folga confortável
+        // pras duas opções de 4 linhas + a citação literal + o wrapper JSON.
+        max_tokens: 700,
+        system: SYSTEM_PROMPT,
+        messages,
+      });
+      return parse(extractText(msg));
+    }
+
+    const first = await ask([{ role: "user", content: userPrompt }]);
     if (!hasLongVerbatimCopy(first.optionA, sources) && !hasLongVerbatimCopy(first.optionB, sources)) return first;
-    // Uma tentativa extra basta na prática — não fica retentando indefinidamente.
-    return attempt();
+
+    // Autocorreção: mostra pro modelo a própria resposta que falhou e pede
+    // pra corrigir só isso — na prática é bem mais eficaz que só tentar de
+    // novo do zero com o mesmo prompt (testado: uma tentativa "às cegas" às
+    // vezes cai na mesma armadilha de novo), porque o modelo vê exatamente
+    // o que ele mesmo errou.
+    return ask([
+      { role: "user", content: userPrompt },
+      { role: "assistant", content: JSON.stringify(first) },
+      { role: "user", content: COPY_CORRECTION },
+    ]);
   },
 
   async generateFullLyric(input) {
-    async function attempt() {
-      const msg = await client().messages.create({
-        model: "claude-sonnet-4-5",
-        max_tokens: 1100,
-        system: SYSTEM_PROMPT,
-        messages: [
-          {
-            role: "user",
-            content: `Escreva a letra completa de uma música ${input.genre} sobre ${input.nickname} (${input.relationship}), ocasião: ${input.occasion}, voz: ${input.voicePreference}.
+    const sources = [input.story, input.funDetail];
+    const userPrompt = `Escreva a letra completa de uma música ${input.genre} sobre ${input.nickname} (${input.relationship}), ocasião: ${input.occasion}, voz: ${input.voicePreference}.
 História: ${input.story}
 Detalhe marcante: ${input.funDetail}
 ${input.mood ? `Clima emocional pedido: ${input.mood}.` : ""}
 ${input.namesToInclude ? `Cite também, onde fizer sentido (ex: na ponte ou no outro): ${input.namesToInclude}.` : ""}
 Use este refrão exatamente como o [Chorus] (repita nas duas ocorrências):
-${input.chosenChorus}`,
-          },
-        ],
+${input.chosenChorus}`;
+
+    async function ask(messages: Anthropic.MessageParam[]) {
+      const msg = await client().messages.create({
+        model: "claude-sonnet-4-5",
+        max_tokens: 1100,
+        system: SYSTEM_PROMPT,
+        messages,
       });
       return repairTags(extractText(msg));
     }
 
-    const sources = [input.story, input.funDetail];
-    const first = await attempt();
+    const first = await ask([{ role: "user", content: userPrompt }]);
     if (!hasLongVerbatimCopy(first, sources)) return first;
-    // Uma tentativa extra basta na prática — não fica retentando indefinidamente.
-    return attempt();
+
+    // Mesma lógica de autocorreção do refrão — ver comentário acima.
+    return ask([
+      { role: "user", content: userPrompt },
+      { role: "assistant", content: first },
+      { role: "user", content: COPY_CORRECTION },
+    ]);
   },
 };
