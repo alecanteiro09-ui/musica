@@ -52,7 +52,12 @@ export const anthropicLyricsProvider: LyricsProvider = {
   async generateChorusOptions(input: WizardAnswers) {
     const msg = await client().messages.create({
       model: "claude-sonnet-4-5",
-      max_tokens: 400,
+      // Era 400 — curto demais depois que a instrução de citar uma frase
+      // literal do cliente entrou no SYSTEM_PROMPT: a opção A saiu cortada
+      // no meio de uma palavra em teste real ("...sempre er"), porque o
+      // texto batia o teto antes do JSON fechar. 700 dá folga confortável
+      // pras duas opções de 4 linhas + a citação literal + o wrapper JSON.
+      max_tokens: 700,
       system: SYSTEM_PROMPT,
       messages: [
         {
