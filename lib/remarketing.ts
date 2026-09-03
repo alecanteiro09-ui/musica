@@ -4,6 +4,15 @@ import { getEmailProvider } from "@/lib/email/provider";
 const STAGE_DAYS: Record<1 | 2 | 3, number> = { 1: 1, 2: 3, 3: 7 };
 const STAGE_2_DISCOUNT_CENTS = 1000;
 const TERMINAL_STATUSES = ["paid", "delivered", "failed", "expired"];
+// Manda tudo de uma rajada só (sem pausa nenhuma entre e-mails) é um sinal
+// clássico de campanha automatizada pros filtros de spam — ainda mais grave
+// com um domínio de envio novo (ver nota em app/privacidade/page.tsx sobre
+// isso). Espaça os envios em vez de disparar todos ao mesmo tempo.
+const SEND_DELAY_MS = 2500;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 export interface RemarketingSweepResult {
   scanned: number;
@@ -23,7 +32,7 @@ export async function runRemarketingSweep(): Promise<RemarketingSweepResult> {
 
   const { data: candidates, error } = await supabase
     .from("orders")
-    .select("id, buyer_token, buyer_email, buyer_name, recipient_nickname, remarketing_stage, discount_cents, created_at")
+    .select("id, buyer_token, buyer_email, buyer_name, recipient_nickname, relationship, remarketing_stage, discount_cents, created_at")
     .not("buyer_email", "is", null)
     .eq("marketing_opt_out", false)
     .lt("remarketing_stage", 3)
@@ -37,11 +46,16 @@ export async function runRemarketingSweep(): Promise<RemarketingSweepResult> {
   let sent = 0;
   let failed = 0;
   const now = Date.now();
+  let isFirstSend = true;
 
   for (const order of candidates) {
     const daysSinceCreated = (now - new Date(order.created_at).getTime()) / (1000 * 60 * 60 * 24);
     const nextStage = (order.remarketing_stage + 1) as 1 | 2 | 3;
     if (daysSinceCreated < STAGE_DAYS[nextStage]) continue;
+
+    // Espaça cada envio (menos o primeiro, que não precisa esperar nada).
+    if (!isFirstSend) await sleep(SEND_DELAY_MS);
+    isFirstSend = false;
 
     try {
       const updates: Record<string, unknown> = {
@@ -61,6 +75,7 @@ export async function runRemarketingSweep(): Promise<RemarketingSweepResult> {
         toEmail: order.buyer_email!,
         buyerName: order.buyer_name || "",
         recipientNickname: order.recipient_nickname || "",
+        relationship: order.relationship || "",
         orderUrl: `${siteUrl}/pedido/${order.buyer_token}`,
         unsubscribeUrl: `${siteUrl}/api/unsubscribe?token=${order.buyer_token}`,
         stage: nextStage,

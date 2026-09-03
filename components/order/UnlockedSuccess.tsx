@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import QRCode from "qrcode";
-import { ImagePlus, Loader2 } from "lucide-react";
+import { ImagePlus, Loader2, Sparkles } from "lucide-react";
 import { uploadPhotoFile } from "@/lib/photos/uploadPhotoFile";
 import { trackEvent } from "@/lib/analytics/track";
 import { PhotoPdfStatus } from "./PhotoPdfStatus";
@@ -101,27 +101,41 @@ export function UnlockedSuccess({
         Abrir o presente
       </a>
 
-      <div className="mt-12 text-left">
-        <h2 className="font-display text-lg italic text-ink">Uma foto de fundo (opcional, mas fica lindo)</h2>
-        <p className="mt-1 text-xs text-ink-muted">
-          Até 12 fotos — elas viram o fundo da página do presente, atrás da música e da letra. Sem foto nenhuma, a
-          gente usa uma imagem combinando com o tipo de relação.
+      <div className="mt-12 rounded-2xl border-2 border-accent-soft bg-accent-soft/40 p-6 text-left">
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-accent px-3 py-1 text-xs font-bold uppercase tracking-wide text-on-accent">
+          <Sparkles size={13} />
+          Recomendado
+        </span>
+        <h2 className="mt-3 font-display text-xl italic text-ink">Deixa com a foto de vocês</h2>
+        <p className="mt-1.5 text-sm text-ink-muted">
+          Até 12 fotos — elas viram o fundo da página do presente, atrás da música e da letra em karaokê. Sem
+          foto nenhuma, a gente usa uma imagem genérica combinando com o tipo de relação — mas fica bem mais
+          especial com a foto de verdade.
         </p>
 
-        <div className="mt-4 grid grid-cols-4 gap-2">
+        <div className="mt-5 grid grid-cols-4 gap-2.5">
           {photos.map((p) => (
             // eslint-disable-next-line @next/next/no-img-element
-            <img key={p.id} src={p.image_url} alt="" className="aspect-square rounded-lg object-cover" />
+            <img key={p.id} src={p.image_url} alt="" className="aspect-square rounded-xl object-cover shadow-card" />
           ))}
-          <button
-            type="button"
-            onClick={onPickFile}
-            disabled={isPending}
-            className="flex aspect-square items-center justify-center rounded-lg border border-dashed border-base-border text-ink-muted hover:border-accent-dim"
-          >
-            {isPending ? <Loader2 size={18} className="animate-spin" /> : <ImagePlus size={18} />}
-          </button>
         </div>
+
+        <button
+          type="button"
+          onClick={onPickFile}
+          disabled={isPending}
+          className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-accent bg-base px-4 py-4 font-medium text-accent transition-colors hover:bg-accent-soft disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {isPending ? (
+            <>
+              <Loader2 size={18} className="animate-spin" /> Enviando foto...
+            </>
+          ) : (
+            <>
+              <ImagePlus size={18} /> {photos.length > 0 ? "Adicionar outra foto" : "Adicionar foto agora"}
+            </>
+          )}
+        </button>
         <input ref={fileInput} type="file" accept="image/*" className="hidden" onChange={onFileChange} />
         {uploadError && <p className="mt-2 text-xs text-accent">{uploadError}</p>}
       </div>

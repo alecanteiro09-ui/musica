@@ -80,67 +80,109 @@ function buildPhotoPdfHtml(input: { buyerName: string; recipientNickname: string
 }
 
 const REMARKETING_SUBJECTS: Record<1 | 2 | 3, (nickname: string) => string> = {
-  1: (nickname) => `A letra da música de ${nickname} ainda tá esperando você`,
-  2: (nickname) => `Separei R$10 pra você terminar a música de ${nickname}`,
-  3: () => `Por hoje: o quadro de foto sai de graça`,
+  1: (nickname) => `${nickname} ainda não ouviu a música que você começou`,
+  2: (nickname) => `R$10 separados pra você terminar a música de ${nickname} 🎁`,
+  3: (nickname) => `Última chance: desconto + quadro de graça pra ${nickname}`,
 };
+
+/**
+ * Cada relação do wizard (ver components/wizard/Wizard.tsx) tem uma foto real
+ * dela em public/images/occasions — reaproveita aqui como imagem de topo do
+ * e-mail, escolhida pela relação de CADA pedido (não uma imagem genérica
+ * igual pra todo mundo). Fallback pra quando não tem foto daquela relação
+ * específica (irmã/irmão, neto/neta, família, amigo, pet, outro).
+ */
+const RELATIONSHIP_IMAGE_SLUG: Record<string, string> = {
+  esposa: "esposa",
+  marido: "marido",
+  namorada: "namorados",
+  namorado: "namorados",
+  mãe: "mae",
+  pai: "pai",
+  avó: "avos",
+  avô: "avos",
+  filha: "filhos",
+  filho: "filhos",
+  amiga: "amiga",
+};
+
+function remarketingImageUrl(relationship: string): string {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://versounicogift.online";
+  const slug = RELATIONSHIP_IMAGE_SLUG[relationship.trim().toLowerCase()] || "namorados";
+  return `${siteUrl}/images/occasions/${slug}.jpg`;
+}
 
 /**
  * Corpo específico de cada estágio da sequência de carrinho abandonado.
  * Estágio 1 é reciprocidade pura (a letra grátis já existe, sem desconto,
- * sem pressão). 2 e 3 empilham oferta real (desconto em dinheiro, depois
- * +foto grátis) — nunca desconto falso/contagem regressiva forjada.
+ * sem pressão) — gatilho: já investiu, já é "seu". 2 empilha desconto real
+ * + ancora o preço (mostra de/por) + garantia bem perto do botão (reduz
+ * risco percebido, que é o que mais trava decisão de compra). 3 é a única
+ * urgência de verdade da sequência: é literalmente o último e-mail, dito de
+ * forma honesta — nunca contagem regressiva ou desconto forjado.
  */
-function buildRemarketingBody(input: RemarketingEmailInput): { greeting: string; body: string; cta: string } {
+function buildRemarketingBody(input: RemarketingEmailInput): { eyebrow: string; greeting: string; body: string; cta: string; priceLine?: string } {
   const name = input.recipientNickname || "essa pessoa";
-  const hello = input.buyerName ? `Oi, ${input.buyerName}. ` : "Oi. ";
+  const hello = input.buyerName ? `Oi, ${input.buyerName}.` : "Oi.";
 
   if (input.stage === 1) {
     return {
-      greeting: `A letra pra ${name} já está pronta`,
-      body: `${hello}Você começou a música pra ${name} e a letra já foi escrita, do jeito que você contou — ela tá salva, esperando por você no mesmo link de sempre. Não precisa decidir nada agora: você só paga depois de ouvir um trecho cantado.`,
-      cta: "Continuar de onde parei",
+      eyebrow: "sua letra já existe",
+      greeting: `A música pra ${name} tá esperando você`,
+      body: `${hello} A letra já foi escrita do jeito exato que você contou a história — isso não se perde, fica salva no seu link. Falta só um passo: ouvir o trecho cantado (é grátis) e decidir se quer a versão completa. Ninguém cobra nada de você até aí.`,
+      cta: "Ouvir o trecho grátis",
     };
   }
 
   const discount = formatBRL(input.discountCents);
   if (input.stage === 2) {
     return {
-      greeting: `${discount} de desconto separados pra você`,
-      body: `${hello}Sei que a vida fica no meio do caminho. Separei ${discount} de desconto pra você terminar a música de ${name} — já aplicado automaticamente no seu link, sem cupom pra digitar. E continua valendo a garantia: 7 dias, reembolso sem perguntas.`,
+      eyebrow: "desconto liberado",
+      greeting: `Separei ${discount} pra você terminar a música de ${name}`,
+      body: `${hello} Sei que a vida fica no meio do caminho — por isso já apliquei ${discount} de desconto direto no seu link, sem cupom pra digitar. E a compra continua protegida pela garantia de 7 dias: não curtiu, a gente devolve, sem perguntas.`,
       cta: `Terminar com ${discount} de desconto`,
     };
   }
 
   return {
-    greeting: "Essa é a última vez que te escrevo sobre isso",
-    body: `${hello}Ainda dá pra terminar a música de ${name} com os ${discount} de desconto — e, só até você usar o link, o quadro com a foto tratada por IA sai de graça também (era um upsell pago). Depois desse e-mail, paro de te lembrar.`,
-    cta: `Terminar com desconto + foto de graça`,
+    eyebrow: "último aviso",
+    greeting: `É a última vez que te escrevo sobre isso, ${input.buyerName || "viu"}`,
+    body: `Depois desse e-mail eu paro de te lembrar da música de ${name}. Enquanto isso não acontece, os ${discount} de desconto continuam valendo — e o quadro com a foto tratada por IA (upsell pago pra todo mundo) sai de graça também, só nessa última chance.`,
+    cta: "Terminar com desconto + foto de graça",
   };
 }
 
 function buildRemarketingHtml(input: RemarketingEmailInput): string {
-  const { greeting, body, cta } = buildRemarketingBody(input);
+  const { eyebrow, greeting, body, cta } = buildRemarketingBody(input);
+  const imageUrl = remarketingImageUrl(input.relationship);
   return `
 <div style="background:#FBF7FA;padding:40px 16px;font-family:Georgia,'Times New Roman',serif;">
-  <div style="max-width:480px;margin:0 auto;background:#ffffff;border-radius:16px;padding:40px 32px;text-align:center;">
-    <p style="font-family:Arial,Helvetica,sans-serif;font-size:13px;letter-spacing:0.08em;text-transform:uppercase;color:#FF7A54;margin:0 0 16px;">Verso Único</p>
-    <h1 style="font-size:24px;line-height:1.3;color:#332A3D;margin:0 0 12px;font-weight:normal;font-style:italic;">
-      ${greeting}
-    </h1>
-    <p style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#332A3D;margin:0 0 28px;">
-      ${body}
-    </p>
-    <a href="${input.orderUrl}" style="display:inline-block;background:#FF7A54;color:#2B1810;font-family:Arial,Helvetica,sans-serif;font-weight:bold;font-size:15px;text-decoration:none;padding:14px 32px;border-radius:999px;">
-      ${cta}
-    </a>
-    <p style="font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#9b8fa3;margin:28px 0 0;word-break:break-all;">
-      Ou copie o link: ${input.orderUrl}
-    </p>
-    <p style="font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#c2b8c7;margin:32px 0 0;border-top:1px solid #f0e8f0;padding-top:16px;">
-      Verso Único — LVC DIGITAL LTDA · CNPJ 41.949.006/0001-97<br />
-      Não quer mais receber esses lembretes? <a href="${input.unsubscribeUrl}" style="color:#9b8fa3;">Clique aqui pra parar</a>.
-    </p>
+  <div style="max-width:480px;margin:0 auto;background:#ffffff;border-radius:16px;overflow:hidden;text-align:center;">
+    <img src="${imageUrl}" width="480" alt="" style="display:block;width:100%;height:220px;object-fit:cover;object-position:center 20%;" />
+    <div style="padding:36px 32px 40px;">
+      <p style="display:inline-block;font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:bold;letter-spacing:0.08em;text-transform:uppercase;color:#FF7A54;background:#FFF1EC;border-radius:999px;padding:6px 14px;margin:0 0 18px;">
+        ${eyebrow}
+      </p>
+      <h1 style="font-size:24px;line-height:1.3;color:#332A3D;margin:0 0 12px;font-weight:normal;font-style:italic;">
+        ${greeting}
+      </h1>
+      <p style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#332A3D;margin:0 0 28px;text-align:left;">
+        ${body}
+      </p>
+      <a href="${input.orderUrl}" style="display:inline-block;background:#FF7A54;color:#2B1810;font-family:Arial,Helvetica,sans-serif;font-weight:bold;font-size:15px;text-decoration:none;padding:14px 32px;border-radius:999px;">
+        ${cta}
+      </a>
+      <p style="font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#9b8fa3;margin:16px 0 0;">
+        Garantia de 7 dias · reembolso sem perguntas
+      </p>
+      <p style="font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#9b8fa3;margin:20px 0 0;word-break:break-all;">
+        Ou copie o link: ${input.orderUrl}
+      </p>
+      <p style="font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#c2b8c7;margin:32px 0 0;border-top:1px solid #f0e8f0;padding-top:16px;">
+        Verso Único — LVC DIGITAL LTDA · CNPJ 41.949.006/0001-97<br />
+        Não quer mais receber esses lembretes? <a href="${input.unsubscribeUrl}" style="color:#9b8fa3;">Clique aqui pra parar</a>.
+      </p>
+    </div>
   </div>
 </div>`.trim();
 }

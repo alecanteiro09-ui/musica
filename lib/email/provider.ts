@@ -25,6 +25,9 @@ export interface RemarketingEmailInput {
   toEmail: string;
   buyerName: string;
   recipientNickname: string;
+  /** Ex: "Mãe", "Namorado" — ver components/wizard/Wizard.tsx. Usada só pra
+   *  escolher a foto do topo do e-mail (lib/email/providers/resend-email.ts). */
+  relationship: string;
   orderUrl: string;
   unsubscribeUrl: string;
   stage: 1 | 2 | 3;

@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runRemarketingSweep } from "@/lib/remarketing";
 
+// Agora que o envio é espaçado (2.5s entre e-mails, ver lib/remarketing.ts)
+// em vez de tudo numa rajada só, a função pode legitimamente demorar mais —
+// 60s dá margem pra uns 20+ e-mails no mesmo dia sem estourar o timeout
+// padrão de 10s do plano Hobby.
+export const maxDuration = 60;
+
 /**
  * Disparado 1x/dia pelo cron do Vercel (ver vercel.json). A Vercel injeta o
  * header Authorization com CRON_SECRET automaticamente quando essa env var
