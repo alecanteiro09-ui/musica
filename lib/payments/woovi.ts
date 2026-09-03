@@ -5,13 +5,26 @@ const WOOVI_API_BASE = "https://api.woovi.com/api/v1";
 /**
  * A Woovi rejeita emoji no campo "comment" (erro real visto em produção:
  * comprador colocou emoji no apelido de quem recebe, ex: "Alessandra ❤️",
- * que vai direto pro comentário do Pix). Remove só emoji — mantém acento
+ * que vai direto pro comentário do Pix). Remove emoji — mantém acento
  * normal (ú, ã, ç...), que não é o problema.
+ *
+ * Depurando em produção (log [woovi/debug]) descobri que o comentário já
+ * sem emoji ainda era rejeitado com a MESMA mensagem "Emoji não é
+ * permitido no comentário" — o único caractere não-ASCII restante era o
+ * travessão tipográfico "—" (U+2014) do nosso próprio texto fixo "Verso
+ * Único — presente para X". Ou seja, a validação da Woovi parece rejeitar
+ * qualquer símbolo Unicode "chique" (travessão, aspas curvas, reticências)
+ * sob esse mesmo rótulo genérico de "emoji". Por segurança, normaliza
+ * também esses símbolos pro equivalente ASCII.
  */
 function sanitizeComment(text: string): string {
   return text
     .replace(/\p{Extended_Pictographic}/gu, "")
     .replace(/[\u{FE0F}\u{200D}]/gu, "")
+    .replace(/[‒-―]/gu, "-")
+    .replace(/[‘’]/gu, "'")
+    .replace(/[“”]/gu, '"')
+    .replace(/…/gu, "...")
     .replace(/\s{2,}/g, " ")
     .trim();
 }
@@ -29,12 +42,6 @@ export const wooviProvider: PaymentProvider = {
     if (!appId) throw new Error("WOOVI_APP_ID não configurado.");
 
     const sanitized = sanitizeComment(input.comment);
-    console.log("[woovi/debug] comment raw vs sanitized", {
-      raw: input.comment,
-      rawCodePoints: [...input.comment].map((c) => c.codePointAt(0)?.toString(16)),
-      sanitized,
-      sanitizedCodePoints: [...sanitized].map((c) => c.codePointAt(0)?.toString(16)),
-    });
 
     const res = await fetch(`${WOOVI_API_BASE}/charge`, {
       method: "POST",
