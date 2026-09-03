@@ -163,10 +163,13 @@ export async function getHeatmapData(path: string, device: string): Promise<Heat
 
   const scrollBands = Array.from({ length: 10 }, (_, i) => {
     const band = i * 10;
+    const reached = bandReached.get(band) || 0;
     return {
       band,
-      reachedPct: sampleCount > 0 ? Math.round(((bandReached.get(band) || 0) / sampleCount) * 100) : 0,
-      dwellMs: bandDwell.get(band) || 0,
+      reachedPct: sampleCount > 0 ? Math.round((reached / sampleCount) * 100) : 0,
+      // Média por quem chegou nessa faixa (não a soma de todo mundo) — senão
+      // "9min" pareceria o tempo de UMA pessoa em vez de 95 pessoas somadas.
+      dwellMs: reached > 0 ? Math.round((bandDwell.get(band) || 0) / reached) : 0,
     };
   });
 
