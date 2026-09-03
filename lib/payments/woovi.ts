@@ -33,6 +33,7 @@ export const wooviProvider: PaymentProvider = {
       raw: input.comment,
       rawCodePoints: [...input.comment].map((c) => c.codePointAt(0)?.toString(16)),
       sanitized,
+      sanitizedCodePoints: [...sanitized].map((c) => c.codePointAt(0)?.toString(16)),
     });
 
     const res = await fetch(`${WOOVI_API_BASE}/charge`, {
