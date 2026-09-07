@@ -11,7 +11,7 @@ export async function generateMetadata({ params }: { params: { token: string } }
   if (!gift) return { title: "Regalo no encontrado" };
   return {
     title: `Una canción para ${gift.nickname}`,
-    openGraph: { title: `Una canción para ${gift.nickname}`, description: "Hecho con Verso Único" },
+    openGraph: { title: `Una canción para ${gift.nickname}`, description: "Hecho con Verso Único", locale: "es_MX" },
   };
 }
 

@@ -18,13 +18,13 @@ export function PricingIncludes() {
     <section className="border-y border-base-border bg-base-soft py-20">
       <div className="mx-auto max-w-lg px-6 text-center">
         <Reveal>
-          <p className="text-sm font-medium uppercase tracking-wide text-accent">menos que un mariachi de la calle</p>
+          <p className="text-sm font-medium uppercase tracking-wide text-accent">casi lo mismo que un mariachi de la calle</p>
           <h2 className="mt-3 font-display text-3xl italic text-ink md:text-4xl">
             {formatMXN(BASE_PRICE_CENTS_MX)} pago único
           </h2>
           <p className="mx-auto mt-3 max-w-sm text-ink-muted">
-            Una sola canción de mariachi en la calle cuesta 150–250 pesos. Aquí, por lo mismo, tienes una canción
-            100% tuya — con el nombre, la historia y la ocasión reales — para siempre.
+            Una sola canción de mariachi en la calle cuesta 150–250 pesos. Aquí, por casi lo mismo, tienes una
+            canción 100% tuya — con el nombre, la historia y la ocasión reales — para siempre.
           </p>
 
           <div className="mt-8 rounded-2xl border border-base-border bg-base p-6 text-left shadow-card">

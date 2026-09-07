@@ -3,9 +3,8 @@ import { getEmailProvider } from "@/lib/email/provider";
 
 const STAGE_DAYS: Record<1 | 2 | 3, number> = { 1: 1, 2: 3, 3: 7 };
 const STAGE_2_DISCOUNT_CENTS = 1000;
-// 65 MXN — mesma proporção do desconto BR sobre o preço-base (~25%), usando
-// um valor redondo já familiar (é o mesmo valor do addon de foto-quadro MX).
-const STAGE_2_DISCOUNT_CENTS_MX = 6500;
+// 40 MXN — mesma proporção do desconto BR sobre o preço-base (~25%).
+const STAGE_2_DISCOUNT_CENTS_MX = 4000;
 const TERMINAL_STATUSES = ["paid", "delivered", "failed", "expired"];
 // Manda tudo de uma rajada só (sem pausa nenhuma entre e-mails) é um sinal
 // clássico de campanha automatizada pros filtros de spam — ainda mais grave

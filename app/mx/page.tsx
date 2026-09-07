@@ -16,6 +16,15 @@ export const metadata = {
   title: "Verso Único México — Una canción hecha con tu historia",
   description:
     "Cuenta la historia de alguien que amas y recibe una canción original en mariachi, banda, norteño o bolero. La letra es gratis.",
+  // Sin esto, la vista previa de enlaces (anuncios, WhatsApp, redes) hereda
+  // el openGraph en portugués del layout raíz (ver app/layout.tsx) — un
+  // problema real para una campaña de anuncios en español.
+  openGraph: {
+    title: "Verso Único México",
+    description: "Tu historia, hecha canción.",
+    type: "website",
+    locale: "es_MX",
+  },
 };
 
 const STEPS = [

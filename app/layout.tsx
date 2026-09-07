@@ -4,6 +4,7 @@ import { Newsreader, Manrope } from "next/font/google";
 import "./globals.css";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
+import { HtmlLangSync } from "@/components/layout/HtmlLangSync";
 import { Pixels } from "@/components/analytics/Pixels";
 import { PageViewTracker } from "@/components/analytics/PageViewTracker";
 import { HeatmapTracker } from "@/components/analytics/HeatmapTracker";
@@ -43,6 +44,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="pt-BR" className={`${newsreader.variable} ${manrope.variable}`}>
       <body className="min-h-screen bg-base font-sans text-ink antialiased">
+        <HtmlLangSync />
         <Pixels />
         <Suspense fallback={null}>
           <PageViewTracker />

@@ -9,14 +9,13 @@ export const VOICE_CLONE_ADDON_CENTS = Number(process.env.VOICE_CLONE_ADDON_CENT
 export const PHOTO_PDF_ADDON_CENTS = Number(process.env.PHOTO_PDF_ADDON_CENTS ?? 999);
 
 /**
- * Preços do mercado México (app/mx), em centavos de MXN. 249 MXN de base —
- * mais barato que UMA música avulsa de mariachi de rua em Garibaldi/CDMX
- * (150–250 MXN, pesquisa de mercado 2026), com addons na mesma proporção da
- * estrutura BR (~55% e ~25% do preço-base).
+ * Preços do mercado México (app/mx), em centavos de MXN. 159,99 MXN de
+ * base — abaixo até da ponta mais barata de UMA música avulsa de mariachi
+ * de rua em Garibaldi/CDMX (150–250 MXN, pesquisa de mercado 2026).
  */
-export const BASE_PRICE_CENTS_MX = Number(process.env.GIFT_PRICE_CENTS_MX ?? 24900);
+export const BASE_PRICE_CENTS_MX = Number(process.env.GIFT_PRICE_CENTS_MX ?? 15999);
 export const VOICE_CLONE_ADDON_CENTS_MX = Number(process.env.VOICE_CLONE_ADDON_CENTS_MX ?? 14000);
-export const PHOTO_PDF_ADDON_CENTS_MX = Number(process.env.PHOTO_PDF_ADDON_CENTS_MX ?? 6500);
+export const PHOTO_PDF_ADDON_CENTS_MX = Number(process.env.PHOTO_PDF_ADDON_CENTS_MX ?? 7999);
 
 export function computeOrderPriceCents(wantsCustomVoice: boolean, market: "br" | "mx" = "br"): number {
   if (market === "mx") return BASE_PRICE_CENTS_MX + (wantsCustomVoice ? VOICE_CLONE_ADDON_CENTS_MX : 0);
