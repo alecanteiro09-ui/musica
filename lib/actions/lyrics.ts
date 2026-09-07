@@ -32,7 +32,7 @@ export async function selectChorusAndGenerateFullLyric(buyerToken: string, chose
     source: "ai",
   });
 
-  revalidatePath(`/pedido/${buyerToken}`);
+  revalidatePath(`${order.currency === "MXN" ? "/mx" : ""}/pedido/${buyerToken}`);
 }
 
 /** Gera 2 novas opções de refrão pra substituir as atuais (pedido do usuário: "reescrever com IA"). */
@@ -50,5 +50,5 @@ export async function regenerateChorusOptions(buyerToken: string): Promise<void>
     { order_id: order.id, kind: "chorus_option", content: optionB },
   ]);
 
-  revalidatePath(`/pedido/${buyerToken}`);
+  revalidatePath(`${order.currency === "MXN" ? "/mx" : ""}/pedido/${buyerToken}`);
 }

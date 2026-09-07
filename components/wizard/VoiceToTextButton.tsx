@@ -9,7 +9,16 @@ import { cn } from "@/lib/utils";
  * SpeechRecognition do navegador (sem custo de API — só funciona em
  * Chrome/Edge/Safari; em navegadores sem suporte o botão nem aparece).
  */
-export function VoiceToTextButton({ onResult }: { onResult: (text: string) => void }) {
+export function VoiceToTextButton({
+  onResult,
+  lang = "pt-BR",
+  labels = { listening: "Te escutando... toque pra parar", idle: "Prefiro falar" },
+}: {
+  onResult: (text: string) => void;
+  /** BCP-47 do reconhecimento de voz do navegador — "pt-BR" (padrão) ou "es-MX" (app/mx). */
+  lang?: string;
+  labels?: { listening: string; idle: string };
+}) {
   const [listening, setListening] = useState(false);
   const recognitionRef = useRef<any>(null);
 
@@ -25,7 +34,7 @@ export function VoiceToTextButton({ onResult }: { onResult: (text: string) => vo
       return;
     }
     const recognition = new SpeechRecognitionCtor();
-    recognition.lang = "pt-BR";
+    recognition.lang = lang;
     recognition.interimResults = false;
     recognition.continuous = true;
     recognition.onresult = (event: any) => {
@@ -52,7 +61,7 @@ export function VoiceToTextButton({ onResult }: { onResult: (text: string) => vo
       )}
     >
       {listening ? <Loader2 size={16} className="animate-spin text-accent" /> : <Mic size={16} />}
-      {listening ? "Te escutando... toque pra parar" : "Prefiro falar"}
+      {listening ? labels.listening : labels.idle}
     </button>
   );
 }

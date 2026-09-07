@@ -3,6 +3,7 @@
 import { createAdminClient } from "@/lib/supabase/server";
 import { getPaymentProvider } from "@/lib/payments/provider";
 import type { CardAddress } from "@/lib/payments/provider";
+import { stripeProvider } from "@/lib/payments/stripe";
 import { getOrderByBuyerToken } from "./orders";
 import type { OrderStatus } from "@/types";
 
@@ -126,6 +127,71 @@ export async function createCardCharge(buyerToken: string, customer: CardCustome
   );
 
   return { paymentLinkUrl: charge.paymentLinkUrl };
+}
+
+/**
+ * Cria (ou reaproveita) a sessão de Checkout da Stripe — mercado México
+ * (app/mx). Diferente do Pix/cartão Woovi, o comprador SAI do nosso site
+ * (redirect pra Stripe) e volta pra mesma página de pedido depois; a tela
+ * MX de checkout então usa o mesmo polling (getPaymentStatus) já existente
+ * pra detectar quando o webhook confirmar o pagamento.
+ */
+export async function createStripeCheckout(buyerToken: string): Promise<{ checkoutUrl: string }> {
+  const bundle = await getOrderByBuyerToken(buyerToken);
+  if (!bundle) throw new Error("Pedido não encontrado.");
+  const { order } = bundle;
+  if (order.status !== "preview_ready") throw new Error("Este pedido ainda não está pronto para pagamento.");
+
+  const supabase = createAdminClient();
+  const correlationId = order.id;
+
+  const { data: existing } = await supabase
+    .from("payments")
+    .select("*")
+    .eq("order_id", order.id)
+    .in("status", ["created", "pix_generated"])
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (existing?.payment_link_url && existing.provider === "stripe" && existing.amount_cents === order.price_cents) {
+    return { checkoutUrl: existing.payment_link_url };
+  }
+
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+  let checkout: { checkoutUrl: string; sessionId: string };
+  try {
+    checkout = await stripeProvider.createCheckoutSession({
+      orderId: order.id,
+      correlationId,
+      amountCents: order.price_cents,
+      description: `Canción personalizada para ${order.recipient_nickname ?? "alguien especial"}`,
+      customerEmail: order.buyer_email ?? undefined,
+      successUrl: `${siteUrl}/mx/pedido/${buyerToken}`,
+      cancelUrl: `${siteUrl}/mx/pedido/${buyerToken}`,
+    });
+  } catch {
+    // Nunca deixa vazar o erro técnico (ex: chave da Stripe ausente) pro
+    // comprador — mostra uma mensagem em espanhol e deixa o log do servidor
+    // com o detalhe real.
+    throw new Error("No pudimos abrir el pago ahora. Intenta de nuevo en unos minutos.");
+  }
+
+  await supabase.from("payments").upsert(
+    {
+      order_id: order.id,
+      provider: "stripe",
+      correlation_id: correlationId,
+      charge_id: checkout.sessionId,
+      status: "pix_generated",
+      method: "card",
+      amount_cents: order.price_cents,
+      payment_link_url: checkout.checkoutUrl,
+    },
+    { onConflict: "correlation_id" }
+  );
+
+  return { checkoutUrl: checkout.checkoutUrl };
 }
 
 /** Usado pelo polling do frontend enquanto o QR Pix está na tela. */

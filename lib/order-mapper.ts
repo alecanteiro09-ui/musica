@@ -21,5 +21,9 @@ export function orderToWizardAnswers(order: Order): WizardAnswers {
     wantsCustomVoice: order.wants_custom_voice,
     mood: order.mood ?? "",
     namesToInclude: order.names_to_include ?? "",
+    // Deriva do currency em vez de uma coluna nova — o pedido já carrega essa
+    // informação (ver migração 0001_init.sql), e assim nenhuma migração é
+    // necessária só pra saber se a letra deve sair em espanhol.
+    market: order.currency === "MXN" ? "mx" : "br",
   };
 }

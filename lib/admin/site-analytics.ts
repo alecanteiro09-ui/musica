@@ -12,6 +12,33 @@ export interface DashboardData {
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+/**
+ * /pedido/<buyer_token> e /g/<gift_token> têm um token único por pedido —
+ * sem isso, cada venda vira uma "página" própria no painel (1 visita cada),
+ * fragmentando tanto a lista de páginas mais vistas quanto o mapa de calor
+ * em vez de agregar todo mundo que passou pela tela de checkout/presente.
+ */
+function templateOf(path: string): string {
+  return path.replace(/^\/pedido\/[^/]+/, "/pedido/[token]").replace(/^\/g\/[^/]+/, "/g/[token]");
+}
+
+function isTemplate(path: string): boolean {
+  return path.includes("[token]");
+}
+
+/** Aplica o filtro de path certo: prefixo pra template (/pedido/[token] -> like '/pedido/%'), exato pro resto. */
+function matchPath<T extends { eq: (col: string, val: string) => T; like: (col: string, val: string) => T }>(
+  query: T,
+  column: string,
+  path: string
+): T {
+  if (isTemplate(path)) {
+    const prefix = path.split("[token]")[0];
+    return query.like(column, `${prefix}%`);
+  }
+  return query.eq(column, path);
+}
+
 function hostOf(referrer: string | null): string | null {
   if (!referrer) return null;
   try {
@@ -58,7 +85,8 @@ export async function getDashboardData(): Promise<DashboardData> {
   let timeCount = 0;
 
   for (const row of last30d) {
-    pathCounts.set(row.path, (pathCounts.get(row.path) || 0) + 1);
+    const template = templateOf(row.path);
+    pathCounts.set(template, (pathCounts.get(template) || 0) + 1);
     deviceCounts.set(row.device_type, (deviceCounts.get(row.device_type) || 0) + 1);
 
     const host = hostOf(row.referrer);
@@ -107,12 +135,14 @@ export async function getDashboardData(): Promise<DashboardData> {
 export interface HeatmapData {
   paths: string[];
   sampleCount: number;
+  /** URL real (não o template) usada pra carregar o iframe de prévia. */
+  iframePath: string;
   clicks: { xPct: number; yPct: number }[];
   scrollBands: { band: number; reachedPct: number; dwellMs: number }[];
   viewport: { w: number; h: number; docHeight: number };
 }
 
-/** Paths distintos já rastreados, pro seletor de página do /admin/heatmap. */
+/** Templates de página distintos já rastreados, pro seletor do /admin/heatmap (/pedido/[token] agrupa todo pedido, não 1 por venda). */
 export async function getTrackedPaths(): Promise<string[]> {
   const supabase = createAdminClient();
   const { data } = await supabase
@@ -120,19 +150,20 @@ export async function getTrackedPaths(): Promise<string[]> {
     .select("path")
     .order("created_at", { ascending: false })
     .limit(2000);
-  const paths: string[] = (data ?? []).map((r: any) => r.path as string);
-  return Array.from(new Set(paths)).sort();
+  const templates: string[] = (data ?? []).map((r: any) => templateOf(r.path as string));
+  return Array.from(new Set(templates)).sort();
 }
 
 export async function getHeatmapData(path: string, device: string): Promise<HeatmapData> {
   const supabase = createAdminClient();
 
-  let viewsQuery = supabase
-    .from("page_views")
-    .select("id, max_scroll_pct, scroll_dwell_ms, viewport_w, viewport_h, doc_height")
-    .eq("path", path);
+  let viewsQuery = matchPath(
+    supabase.from("page_views").select("id, path, max_scroll_pct, scroll_dwell_ms, viewport_w, viewport_h, doc_height"),
+    "path",
+    path
+  );
   if (device !== "all") viewsQuery = viewsQuery.eq("device_type", device);
-  const { data: views } = await viewsQuery.limit(5000);
+  const { data: views } = await viewsQuery.order("created_at", { ascending: false }).limit(5000);
 
   const rows = views ?? [];
   const sampleCount = rows.length;
@@ -173,7 +204,7 @@ export async function getHeatmapData(path: string, device: string): Promise<Heat
     };
   });
 
-  let clicksQuery = supabase.from("page_clicks").select("x_pct, y_pct").eq("path", path);
+  let clicksQuery = matchPath(supabase.from("page_clicks").select("x_pct, y_pct"), "path", path);
   if (device !== "all") clicksQuery = clicksQuery.eq("device_type", device);
   const { data: clickRows } = await clicksQuery.limit(5000);
 
@@ -182,6 +213,10 @@ export async function getHeatmapData(path: string, device: string): Promise<Heat
   return {
     paths,
     sampleCount,
+    // Template (ex: /pedido/[token]) agrega várias vendas — pro iframe
+    // precisa de uma URL de verdade pra abrir, então usa a visita mais
+    // recente que bateu no filtro como exemplo real da página.
+    iframePath: rows[0]?.path || path,
     clicks: (clickRows ?? []).map((c: any) => ({ xPct: Number(c.x_pct), yPct: Number(c.y_pct) })),
     scrollBands,
     viewport: {

@@ -6,6 +6,8 @@ export interface GiftReadyEmailInput {
   buyerName: string;
   recipientNickname: string;
   giftUrl: string;
+  /** "br" (padrão) ou "mx" — escolhe o template em espanhol (app/mx). */
+  market?: "br" | "mx";
 }
 
 export interface LoginCodeEmailInput {
@@ -35,6 +37,8 @@ export interface RemarketingEmailInput {
   discountCents: number;
   /** true só no estágio 3 (última mensagem, empilha com o desconto). */
   freePhoto: boolean;
+  /** "br" (padrão) ou "mx" — escolhe o template em espanhol (app/mx). */
+  market?: "br" | "mx";
 }
 
 export interface EmailProvider {

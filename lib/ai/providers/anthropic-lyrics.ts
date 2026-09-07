@@ -41,6 +41,50 @@ Como você trabalha:
   [Outro].
 - Não inclua acordes, apenas letra.`;
 
+/**
+ * Equivalente em espanhol (México) do SYSTEM_PROMPT acima — usado quando
+ * `input.market === "mx"` (ver app/mx). Não é uma tradução literal: os
+ * exemplos de gênero trocam forró/sertanejo por mariachi/banda/norteño, que
+ * é o que o público mexicano realmente vai escolher no wizard (ver
+ * components/mx/wizard).
+ */
+const SYSTEM_PROMPT_ES = `Eres un compositor profesional, del tipo que escribe para artistas de verdad —
+no un generador de tarjetas de cumpleaños. Tu letra es la diferencia entre "un regalo
+personalizado" y "una canción que esa persona va a escuchar llorando los próximos diez años".
+
+Cómo trabajas:
+- De TODOS los detalles que la persona contó, elige 1 o 2 imágenes concretas y específicas
+  (un objeto, un gesto, un olor, un lugar, una frase que alguien suele decir) y haz que
+  REAPAREZCAN a lo largo de la letra — en el verso 2, en el puente — como un motivo que amarra
+  toda la canción. Eso es lo que separa una letra memorable de una lista de datos en verso.
+- Muestra, no declares. En vez de "te amo mucho" o "eres especial", describe la ESCENA que lo
+  prueba. El sentimiento nace del detalle concreto, no de la afirmación genérica.
+- El coro funciona como una tesis — la frase-resumen de todo lo que la canción quiere decir. Se
+  repite, pero cada vez que vuelve, el verso anterior le dio un motivo nuevo para significar más.
+- Guarda un giro o reconocimiento para el final (algo que solo tiene sentido decir después de
+  contar toda la historia) — la letra debe tener movimiento, no ser una lista estática de elogios.
+- Nunca inventes datos que no te contaron. Si falta detalle, trabaja con lo que llegó, pero no
+  genérico — prefiere una imagen pequeña y real a una frase grande y vacía.
+- Elige una expresión CORTA (2 a 5 palabras, máximo) tomada literalmente de la historia o del
+  detalle marcante — un objeto, un gesto, un lugar (ej: "el mole de los domingos", "el paso en
+  falso") — y encájala DENTRO de una línea tuya, rodeada de palabras tuyas. Regla dura: la
+  PRIMERA línea de cada verso NUNCA puede ser la frase de la persona reescrita o copiada —
+  empieza cada verso con una imagen en TUS propias palabras; el fragmento literal entra a la
+  mitad o al final de una línea, nunca abriendo el verso entero. Toda línea tiene que terminar
+  con la palabra y la idea completas — nunca cortes a la mitad de una palabra o de una frase
+  sin cerrar.
+- El género, la voz elegida y el ánimo pedido no son solo metadatos: tienen que oírse en la
+  letra. Vocabulario, imágenes y cadencia de una letra de mariachi no pueden sonar como las de
+  un bolero lento, y viceversa — escribe pensando en cómo ese género específico frasea y respira
+  (mariachi: grito, orgullo, entrega total; norteño: declaración directa, acordeón en la cabeza;
+  banda: fiesta, celebración; bolero: susurro al oído, intimidad).
+- Español de México, tono sincero, cero cliché cursi ("iluminas mi mundo", "por siempre a tu
+  lado" y similares están prohibidos).
+- Estructura la letra completa con etiquetas de sección exactamente en este formato, cada una
+  en su propia línea: [Short Intro - máx 8s], [Verse 1], [Chorus], [Verse 2], [Chorus], [Bridge],
+  [Outro].
+- No incluyas acordes, solo letra.`;
+
 function extractText(message: Anthropic.Message): string {
   const block = message.content.find((b) => b.type === "text");
   return block && block.type === "text" ? block.text.trim() : "";
@@ -103,10 +147,22 @@ function hasLongVerbatimCopy(generated: string, sources: string[], minRun = 7): 
 const COPY_CORRECTION =
   'Isso colou um trecho longo da história/detalhe quase palavra por palavra, e uma linha ficou cortada no meio de uma palavra. Reescreva SEM copiar frases inteiras do que a pessoa escreveu — abra cada verso/opção com uma imagem nas SUAS próprias palavras, e use no máximo uma expressão de 2 a 5 palavras da história original. Responda de novo no MESMO formato pedido antes (nada de comentário extra).';
 
+const COPY_CORRECTION_ES =
+  'Eso pegó un fragmento largo de la historia/detalle casi palabra por palabra, y una línea quedó cortada a la mitad de una palabra. Reescribe SIN copiar frases enteras de lo que la persona escribió — abre cada verso/opción con una imagen en TUS propias palabras, y usa como máximo una expresión de 2 a 5 palabras de la historia original. Responde de nuevo en el MISMO formato pedido antes (sin comentario extra).';
+
 export const anthropicLyricsProvider: LyricsProvider = {
   async generateChorusOptions(input: WizardAnswers) {
+    const isMx = input.market === "mx";
     const sources = [input.story, input.funDetail];
-    const userPrompt = `Escreva DUAS opções de refrão (4 linhas cada, sem tags) para uma música ${input.genre} sobre ${input.nickname} (${input.relationship}), ocasião: ${input.occasion}.
+    const userPrompt = isMx
+      ? `Escribe DOS opciones de coro (4 líneas cada una, sin etiquetas) para una canción ${input.genre} sobre ${input.nickname} (${input.relationship}), ocasión: ${input.occasion}.
+Historia: ${input.story}
+Detalle especial: ${input.funDetail}
+${input.chorusHint ? `Frase que debe aparecer: "${input.chorusHint}"` : ""}
+${input.mood ? `Ánimo pedido: ${input.mood}.` : ""}
+${input.namesToInclude ? `Si tiene sentido, menciona también: ${input.namesToInclude}.` : ""}
+Responde estrictamente como JSON puro, sin markdown, sin comillas invertidas, sin texto antes o después: {"optionA": "...", "optionB": "..."} (líneas separadas por \\n).`
+      : `Escreva DUAS opções de refrão (4 linhas cada, sem tags) para uma música ${input.genre} sobre ${input.nickname} (${input.relationship}), ocasião: ${input.occasion}.
 História: ${input.story}
 Detalhe marcante: ${input.funDetail}
 ${input.chorusHint ? `Frase que precisa aparecer: "${input.chorusHint}"` : ""}
@@ -133,7 +189,7 @@ Responda estritamente como JSON puro, sem markdown, sem crase, sem texto antes o
         // texto batia o teto antes do JSON fechar. 700 dá folga confortável
         // pras duas opções de 4 linhas + a citação literal + o wrapper JSON.
         max_tokens: 700,
-        system: SYSTEM_PROMPT,
+        system: isMx ? SYSTEM_PROMPT_ES : SYSTEM_PROMPT,
         messages,
       });
       return parse(extractText(msg));
@@ -150,13 +206,22 @@ Responda estritamente como JSON puro, sem markdown, sem crase, sem texto antes o
     return ask([
       { role: "user", content: userPrompt },
       { role: "assistant", content: JSON.stringify(first) },
-      { role: "user", content: COPY_CORRECTION },
+      { role: "user", content: isMx ? COPY_CORRECTION_ES : COPY_CORRECTION },
     ]);
   },
 
   async generateFullLyric(input) {
+    const isMx = input.market === "mx";
     const sources = [input.story, input.funDetail];
-    const userPrompt = `Escreva a letra completa de uma música ${input.genre} sobre ${input.nickname} (${input.relationship}), ocasião: ${input.occasion}, voz: ${input.voicePreference}.
+    const userPrompt = isMx
+      ? `Escribe la letra completa de una canción ${input.genre} sobre ${input.nickname} (${input.relationship}), ocasión: ${input.occasion}, voz: ${input.voicePreference}.
+Historia: ${input.story}
+Detalle especial: ${input.funDetail}
+${input.mood ? `Ánimo pedido: ${input.mood}.` : ""}
+${input.namesToInclude ? `Menciona también, donde tenga sentido (ej: en el puente o en el outro): ${input.namesToInclude}.` : ""}
+Usa este coro exactamente como el [Chorus] (repítelo en las dos ocurrencias):
+${input.chosenChorus}`
+      : `Escreva a letra completa de uma música ${input.genre} sobre ${input.nickname} (${input.relationship}), ocasião: ${input.occasion}, voz: ${input.voicePreference}.
 História: ${input.story}
 Detalhe marcante: ${input.funDetail}
 ${input.mood ? `Clima emocional pedido: ${input.mood}.` : ""}
@@ -168,7 +233,7 @@ ${input.chosenChorus}`;
       const msg = await client().messages.create({
         model: "claude-sonnet-4-5",
         max_tokens: 1100,
-        system: SYSTEM_PROMPT,
+        system: isMx ? SYSTEM_PROMPT_ES : SYSTEM_PROMPT,
         messages,
       });
       return repairTags(stripCodeFence(extractText(msg)));
@@ -181,7 +246,7 @@ ${input.chosenChorus}`;
     return ask([
       { role: "user", content: userPrompt },
       { role: "assistant", content: first },
-      { role: "user", content: COPY_CORRECTION },
+      { role: "user", content: isMx ? COPY_CORRECTION_ES : COPY_CORRECTION },
     ]);
   },
 };

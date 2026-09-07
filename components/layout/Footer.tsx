@@ -1,13 +1,21 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Logo } from "./Logo";
 
 export function Footer() {
+  const pathname = usePathname();
+  const isMx = pathname?.startsWith("/mx");
+
   return (
     <footer className="border-t border-base-border py-10">
       <div className="mx-auto max-w-5xl px-6 text-sm text-ink-muted">
         <Logo />
         <p className="mt-3">
-          Cada música é composta a partir da história que você conta. Pagamento único, sem mensalidade.
+          {isMx
+            ? "Cada canción es compuesta a partir de la historia que cuentas. Pago único, sin mensualidad."
+            : "Cada música é composta a partir da história que você conta. Pagamento único, sem mensalidade."}
         </p>
 
         <div className="mt-6 flex flex-col gap-3 border-t border-base-border pt-6 sm:flex-row sm:items-center sm:justify-between">
@@ -18,11 +26,11 @@ export function Footer() {
             </a>
           </p>
           <div className="flex gap-4 text-xs">
-            <Link href="/termos" className="underline decoration-dotted hover:text-ink">
-              Termos de Uso
+            <Link href={isMx ? "/mx/terminos" : "/termos"} className="underline decoration-dotted hover:text-ink">
+              {isMx ? "Términos de Uso" : "Termos de Uso"}
             </Link>
-            <Link href="/privacidade" className="underline decoration-dotted hover:text-ink">
-              Política de Privacidade
+            <Link href={isMx ? "/mx/privacidad" : "/privacidade"} className="underline decoration-dotted hover:text-ink">
+              {isMx ? "Aviso de Privacidad" : "Política de Privacidade"}
             </Link>
           </div>
         </div>

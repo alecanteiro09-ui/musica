@@ -1,6 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/server";
 import { getEmailProvider } from "@/lib/email/provider";
-import { PHOTO_PDF_ADDON_CENTS } from "@/lib/pricing";
+import { PHOTO_PDF_ADDON_CENTS, PHOTO_PDF_ADDON_CENTS_MX } from "@/lib/pricing";
 import { sendSaleNotificationSafely } from "@/lib/notify/ntfy";
 import { trackServerEvent } from "@/lib/tracking/provider";
 
@@ -68,19 +68,24 @@ export async function confirmPixPayment(correlationId: string, rawPayload: unkno
 async function sendPurchaseTrackingSafely(orderId: string, amountCents: number) {
   try {
     const supabase = createAdminClient();
-    const { data: order } = await supabase.from("orders").select("buyer_email, buyer_token").eq("id", orderId).single();
+    const { data: order } = await supabase.from("orders").select("buyer_email, buyer_token, currency").eq("id", orderId).single();
     if (!order) return;
 
+    // Pedido do mercado México (app/mx) usa a rota /mx/pedido, não /pedido, e
+    // reporta em MXN pro Meta/TikTok — reportar BRL fixo aqui inflava/distorcia
+    // o valor de venda mexicana nos relatórios de anúncio (bug: currency
+    // hardcoded, corrigido pra usar o valor real do pedido).
+    const isMx = order.currency === "MXN";
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
     await trackServerEvent({
       eventName: "Purchase",
       eventId: `purchase_${orderId}`,
-      eventSourceUrl: `${siteUrl}/pedido/${order.buyer_token}`,
+      eventSourceUrl: `${siteUrl}${isMx ? "/mx" : ""}/pedido/${order.buyer_token}`,
       email: order.buyer_email,
       externalId: order.buyer_token,
       valueCents: amountCents,
-      currency: "BRL",
-      contentName: "Música personalizada",
+      currency: order.currency || "BRL",
+      contentName: isMx ? "Canción personalizada" : "Música personalizada",
     });
   } catch (err) {
     console.error("[tracking] falha ao enviar evento de compra", { orderId, err });
@@ -97,7 +102,7 @@ async function createPhotoPdfOrderIfRequested(orderId: string) {
   const supabase = createAdminClient();
   const { data: order } = await supabase
     .from("orders")
-    .select("wants_photo_pdf, photo_pdf_frame_size, photo_pdf_source_url")
+    .select("wants_photo_pdf, photo_pdf_frame_size, photo_pdf_source_url, promo_free_photo, currency")
     .eq("id", orderId)
     .single();
 
@@ -106,12 +111,14 @@ async function createPhotoPdfOrderIfRequested(orderId: string) {
   const { data: existing } = await supabase.from("photo_pdf_orders").select("id").eq("order_id", orderId).maybeSingle();
   if (existing) return;
 
+  const addonCents = order.promo_free_photo ? 0 : order.currency === "MXN" ? PHOTO_PDF_ADDON_CENTS_MX : PHOTO_PDF_ADDON_CENTS;
+
   await supabase.from("photo_pdf_orders").insert({
     order_id: orderId,
     frame_size: order.photo_pdf_frame_size,
     source_photo_url: order.photo_pdf_source_url,
     status: "paid",
-    amount_cents: PHOTO_PDF_ADDON_CENTS,
+    amount_cents: addonCents,
   });
 }
 
@@ -126,18 +133,20 @@ async function sendGiftReadyEmailSafely(orderId: string) {
     const supabase = createAdminClient();
     const { data: order } = await supabase
       .from("orders")
-      .select("buyer_email, buyer_name, recipient_nickname, gift_token")
+      .select("buyer_email, buyer_name, recipient_nickname, gift_token, currency")
       .eq("id", orderId)
       .single();
 
     if (!order?.buyer_email) return;
 
+    const isMx = order.currency === "MXN";
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
     await getEmailProvider().sendGiftReadyEmail({
       toEmail: order.buyer_email,
       buyerName: order.buyer_name || "",
       recipientNickname: order.recipient_nickname || "",
-      giftUrl: `${siteUrl}/g/${order.gift_token}`,
+      giftUrl: `${siteUrl}${isMx ? "/mx" : ""}/g/${order.gift_token}`,
+      market: isMx ? "mx" : "br",
     });
   } catch (err) {
     console.error("[email] falha ao enviar e-mail de presente liberado", { orderId, err });

@@ -77,7 +77,7 @@ export default async function HeatmapPage({ searchParams }: { searchParams: { pa
         </p>
       ) : (
         <div className="mt-6 grid gap-6 sm:grid-cols-[1fr_220px]">
-          <HeatmapView path={path} clicks={data.clicks} viewport={data.viewport} />
+          <HeatmapView path={data.iframePath} clicks={data.clicks} viewport={data.viewport} />
           <div>
             <h2 className="text-sm font-medium text-ink">Onde param e saem</h2>
             <p className="mt-1 text-xs text-ink-muted">% que rolou até ali · tempo parado ali</p>

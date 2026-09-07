@@ -11,6 +11,8 @@ export interface GenerateSongInput {
   mood?: string;
   /** voiceId clonado (ver lib/ai/voiceClone.ts) — quando presente, a música sai cantada nessa voz em vez da voz padrão da IA. */
   voiceId?: string | null;
+  /** Idioma cantado — "pt-BR" (padrão, mercado Brasil) ou "es-MX" (mercado México, ver app/mx). */
+  language?: "pt-BR" | "es-MX";
 }
 
 export interface GeneratedTrack {

@@ -57,9 +57,9 @@ function normalize(v: string): string {
 function voiceLabel(v: string): string {
   const key = normalize(v);
   if (key === "masculina") return "male vocal";
-  if (key === "dupla") return "duet, male and female vocal";
-  if (key === "surpreenda-me") return ""; // deixa o modelo escolher livremente, sem empurrar pra nenhum lado
-  return "female vocal"; // feminina e qualquer valor não reconhecido
+  if (key === "dupla" || key === "dueto" || key === "a dúo") return "duet, male and female vocal";
+  if (key === "surpreenda-me" || key === "sorpréndeme") return ""; // deixa o modelo escolher livremente, sem empurrar pra nenhum lado
+  return "female vocal"; // feminina/femenina e qualquer valor não reconhecido
 }
 
 /**
@@ -76,9 +76,9 @@ function vocalGenderParam(v: string): "m" | "f" | undefined {
 
 function moodLabel(mood: string): string {
   const key = normalize(mood);
-  if (key === "romântico" || key === "romantico") return "deeply romantic mood";
+  if (key === "romântico" || key === "romantico" || key === "romántico") return "deeply romantic mood";
   if (key === "divertido") return "playful, lighthearted mood";
-  if (key === "emocionante") return "tender, moving mood, builds emotional intensity";
+  if (key === "emocionante" || key === "conmovedor") return "tender, moving mood, builds emotional intensity";
   if (key === "animado") return "upbeat, high-energy mood";
   return mood;
 }
@@ -101,6 +101,17 @@ function genreNegativeTags(genre: string): string | undefined {
     "bossa nova": "sertanejo, pop, loud drums",
     gospel: "sertanejo, funk",
     mpb: "sertanejo universitário, funk",
+    // Gêneros mexicanos: mesma lógica — sem empurrão explícito, o modelo
+    // tende a regredir pro mariachi (o mais representado no treino), então
+    // banda/norteño/cumbia precisam excluir mariachi como resultado errado
+    // mais provável. Hipótese inicial, a confirmar gerando faixas de teste
+    // reais (ver plano de verificação) — ainda não temos bug real reportado
+    // pra esses, diferente dos gêneros BR acima.
+    banda: "mariachi, norteño, reggaeton",
+    norteño: "mariachi, banda, reggaeton",
+    cumbia: "reggaeton, banda, mariachi",
+    bolero: "mariachi, banda, reggaeton",
+    corridos: "banda, cumbia, reggaeton",
   };
   return map[normalize(genre)];
 }
@@ -129,6 +140,15 @@ function genreStyleDetail(genre: string): string {
     reggae: "reggae, offbeat guitar skank, laid-back bassline groove",
     "rap / hip-hop": "Brazilian rap, hip-hop beat, rhythmic spoken-sung flow",
     infantil: "children's song, playful bright melody, simple sing-along arrangement",
+    // Gêneros mexicanos (mercado /mx) — mesma filosofia: instrumentação
+    // concreta em vez de só o nome do gênero (ver comentário acima sobre por
+    // que o nome sozinho é um sinal fraco pro modelo).
+    mariachi: "traditional Mexican mariachi, trumpet and violin sections, vihuela and guitarrón rhythm, powerful emotional ranchera-style lead vocal",
+    banda: "banda sinaloense, brass band with trumpets trombones and clarinets, tuba-driven bassline, upbeat banda rhythm",
+    norteño: "norteño, accordion lead melody, bajo sexto rhythm guitar, polka-influenced dance beat",
+    bolero: "romantic bolero, nylon-string requinto guitar, slow intimate tempo, tender close-up vocal delivery",
+    corridos: "corrido, narrative Mexican ballad, acoustic guitar and accordion, driving rhythmic verses",
+    cumbia: "cumbia, güiro and conga percussion, accordion or synth lead, upbeat danceable tropical groove",
   };
   return map[normalize(genre)] ?? genre;
 }
@@ -183,7 +203,7 @@ export const realMusicProvider: MusicProvider = {
     const styleParts = [
       genreStyleDetail(input.genre || "pop romântico"),
       voiceLabel(input.voicePreference),
-      "Brazilian Portuguese",
+      input.language === "es-MX" ? "Mexican Spanish" : "Brazilian Portuguese",
       "warm and intimate lead vocal",
       "radio-quality mix",
       "emotionally sincere delivery",

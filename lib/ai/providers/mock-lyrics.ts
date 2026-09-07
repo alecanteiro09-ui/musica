@@ -30,6 +30,17 @@ function chorusTemplates(nickname: string, detail: string): string[] {
   ];
 }
 
+/** Equivalente em espanhol dos templates acima — usado quando `input.market === "mx"`. */
+function chorusTemplatesEs(nickname: string, detail: string): string[] {
+  const d = detail.toLowerCase();
+  return [
+    [`${nickname}, ${d}`, `eso es lo que te hace quien eres`, `y aunque el tiempo pase tan rápido`, `esta es la parte que quiero guardar`].join("\n"),
+    [`Desde el día en que nos encontramos, ${nickname}`, `trajiste una forma nueva de vivir`, `y hoy te canto para recordarte`, `todo lo que hemos ido construyendo`].join("\n"),
+    [`Hay tanto que nunca te dije, ${nickname}`, `pero ${d}`, `y eso ya lo dice todo de nosotros`, `esta canción es lo que faltaba`].join("\n"),
+    [`${nickname}, si tuviera que elegir un instante`, `elegiría ${d}`, `porque es en esos detalles pequeños`, `donde uno descubre lo que quiere guardar`].join("\n"),
+  ];
+}
+
 function pickTwoDistinct<T>(items: T[]): [T, T] {
   const a = Math.floor(Math.random() * items.length);
   let b = Math.floor(Math.random() * (items.length - 1));
@@ -40,13 +51,49 @@ function pickTwoDistinct<T>(items: T[]): [T, T] {
 export const mockLyricsProvider: LyricsProvider = {
   async generateChorusOptions(input: WizardAnswers) {
     await new Promise((r) => setTimeout(r, 300));
-    const detail = firstSentence(input.funDetail || input.story || "esse jeito só seu");
-    const [optionA, optionB] = pickTwoDistinct(chorusTemplates(input.nickname, detail));
+    const isMx = input.market === "mx";
+    const detail = firstSentence(input.funDetail || input.story || (isMx ? "esa forma que solo tú tienes" : "esse jeito só seu"));
+    const [optionA, optionB] = pickTwoDistinct((isMx ? chorusTemplatesEs : chorusTemplates)(input.nickname, detail));
     return { optionA, optionB };
   },
 
   async generateFullLyric(input) {
     await new Promise((r) => setTimeout(r, 900));
+    if (input.market === "mx") {
+      const detail = firstSentence(input.funDetail || "esa forma que solo tú tienes");
+      const storyLine = firstSentence(input.story || "una historia que vale la pena contar");
+      return [
+        "[Short Intro - máx 8s]",
+        `${input.nickname}, pon atención a esto`,
+        "",
+        "[Verse 1]",
+        `${storyLine}`,
+        "y hubo un instante que guardé sin querer",
+        `${detail}`,
+        "y desde entonces no lo he olvidado",
+        "",
+        "[Chorus]",
+        input.chosenChorus,
+        "",
+        "[Verse 2]",
+        `Todavía pienso en ${detail.toLowerCase()}`,
+        `${input.relationship ? "porque así fue como entendí" : "porque así fue como aprendí"}`,
+        `${input.relationship ? `lo que es tener a mi ${input.relationship.toLowerCase()}` : "lo que significas para mí"}`,
+        "y eso no es cosa pequeña",
+        "",
+        "[Chorus]",
+        input.chosenChorus,
+        "",
+        "[Bridge]",
+        `Hoy es ${input.occasion?.toLowerCase() || "un día diferente"}, pero la verdad es la misma de siempre:`,
+        `sigue siendo eso, ¿sabes? ${detail.toLowerCase()}`,
+        "es lo que no iba a dejar pasar en blanco",
+        "",
+        "[Outro]",
+        `${input.nickname}, esta canción es tuya`,
+        input.namesToInclude ? `y nunca olvidar a ${input.namesToInclude}, tal como son` : "y va a seguir sonando mucho después de terminar",
+      ].join("\n");
+    }
     // O "detalhe marcante" vira um motivo que volta no verso 2 e na ponte —
     // sem repetição, uma letra genérica de fato não amarra em nada.
     const detail = firstSentence(input.funDetail || "aquele jeito que só você tem");

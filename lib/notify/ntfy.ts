@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/server";
+import { formatBRL, formatMXN } from "@/lib/utils";
 
 const NTFY_SERVER = process.env.NTFY_SERVER || "https://ntfy.sh";
 const NTFY_TOPIC = process.env.NTFY_TOPIC;
@@ -17,12 +18,14 @@ export async function sendSaleNotificationSafely(orderId: string, amountCents: n
     const supabase = createAdminClient();
     const { data: order } = await supabase
       .from("orders")
-      .select("recipient_nickname, wants_photo_pdf, wants_custom_voice")
+      .select("recipient_nickname, wants_photo_pdf, wants_custom_voice, currency")
       .eq("id", orderId)
       .single();
 
-    const price = (amountCents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-    const lines = [`Valor: ${price}`, `Pagamento: ${method === "card" ? "Cartão" : "Pix"}`];
+    const isMx = order?.currency === "MXN";
+    const price = isMx ? formatMXN(amountCents) : formatBRL(amountCents);
+    const paymentLabel = isMx ? "Stripe (cartão)" : method === "card" ? "Cartão" : "Pix";
+    const lines = [`Valor: ${price}${isMx ? " (México)" : ""}`, `Pagamento: ${paymentLabel}`];
     if (order?.wants_custom_voice) lines.push("Com voz clonada");
     if (order?.wants_photo_pdf) lines.push("Com quadro em PDF");
 

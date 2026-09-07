@@ -3,6 +3,9 @@ import { getEmailProvider } from "@/lib/email/provider";
 
 const STAGE_DAYS: Record<1 | 2 | 3, number> = { 1: 1, 2: 3, 3: 7 };
 const STAGE_2_DISCOUNT_CENTS = 1000;
+// 65 MXN — mesma proporção do desconto BR sobre o preço-base (~25%), usando
+// um valor redondo já familiar (é o mesmo valor do addon de foto-quadro MX).
+const STAGE_2_DISCOUNT_CENTS_MX = 6500;
 const TERMINAL_STATUSES = ["paid", "delivered", "failed", "expired"];
 // Manda tudo de uma rajada só (sem pausa nenhuma entre e-mails) é um sinal
 // clássico de campanha automatizada pros filtros de spam — ainda mais grave
@@ -32,7 +35,7 @@ export async function runRemarketingSweep(): Promise<RemarketingSweepResult> {
 
   const { data: candidates, error } = await supabase
     .from("orders")
-    .select("id, buyer_token, buyer_email, buyer_name, recipient_nickname, relationship, remarketing_stage, discount_cents, created_at")
+    .select("id, buyer_token, buyer_email, buyer_name, recipient_nickname, relationship, remarketing_stage, discount_cents, currency, created_at")
     .not("buyer_email", "is", null)
     .eq("marketing_opt_out", false)
     .lt("remarketing_stage", 3)
@@ -58,6 +61,7 @@ export async function runRemarketingSweep(): Promise<RemarketingSweepResult> {
     isFirstSend = false;
 
     try {
+      const isMx = order.currency === "MXN";
       const updates: Record<string, unknown> = {
         remarketing_stage: nextStage,
         remarketing_last_sent_at: new Date().toISOString(),
@@ -66,21 +70,23 @@ export async function runRemarketingSweep(): Promise<RemarketingSweepResult> {
       let discountCents = order.discount_cents;
       const freePhoto = nextStage === 3;
       if (nextStage >= 2) {
-        discountCents = order.discount_cents || STAGE_2_DISCOUNT_CENTS;
+        discountCents = order.discount_cents || (isMx ? STAGE_2_DISCOUNT_CENTS_MX : STAGE_2_DISCOUNT_CENTS);
         updates.discount_cents = discountCents;
       }
       if (freePhoto) updates.promo_free_photo = true;
 
+      const orderPath = `${isMx ? "/mx" : ""}/pedido/${order.buyer_token}`;
       await getEmailProvider().sendRemarketingEmail({
         toEmail: order.buyer_email!,
         buyerName: order.buyer_name || "",
         recipientNickname: order.recipient_nickname || "",
         relationship: order.relationship || "",
-        orderUrl: `${siteUrl}/pedido/${order.buyer_token}`,
+        orderUrl: `${siteUrl}${orderPath}`,
         unsubscribeUrl: `${siteUrl}/api/unsubscribe?token=${order.buyer_token}`,
         stage: nextStage,
         discountCents,
         freePhoto,
+        market: isMx ? "mx" : "br",
       });
 
       await supabase.from("orders").update(updates).eq("id", order.id);

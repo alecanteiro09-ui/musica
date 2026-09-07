@@ -36,6 +36,8 @@ export interface WizardAnswers {
   mood: string;
   /** Nomes que a pessoa quer citados na letra (ex: filhos), separados por vírgula. Opcional. */
   namesToInclude: string;
+  /** Mercado de origem do wizard — "br" (padrão, quando omitido) ou "mx" (app/mx, letra em espanhol/MXN). */
+  market?: "br" | "mx";
 }
 
 export interface Order {

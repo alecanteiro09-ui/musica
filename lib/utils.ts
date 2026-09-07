@@ -10,6 +10,11 @@ export function formatBRL(cents: number): string {
   return (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
+/** Mesmo padrão do formatBRL acima, pro mercado México (app/mx). */
+export function formatMXN(cents: number): string {
+  return (cents / 100).toLocaleString("es-MX", { style: "currency", currency: "MXN" });
+}
+
 /** Extrai as seções [Tag]/texto de uma letra formatada para exibição/karaokê */
 export function parseTaggedLyric(content: string): { tag: string; lines: string[] }[] {
   const blocks = content.split(/\n(?=\[)/).map((b) => b.trim()).filter(Boolean);

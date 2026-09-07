@@ -1,5 +1,5 @@
 import type { EmailProvider, RemarketingEmailInput } from "../provider";
-import { formatBRL } from "@/lib/utils";
+import { formatBRL, formatMXN } from "@/lib/utils";
 
 /**
  * Resend (resend.com) via REST API direta — sem SDK, mesmo padrão usado nos
@@ -14,23 +14,27 @@ function fromAddress(): string {
   return process.env.EMAIL_FROM || "Verso Único <onboarding@resend.dev>";
 }
 
-function buildHtml(input: { buyerName: string; recipientNickname: string; giftUrl: string }): string {
+function buildHtml(input: { buyerName: string; recipientNickname: string; giftUrl: string; market?: "br" | "mx" }): string {
+  const isMx = input.market === "mx";
   return `
 <div style="background:#FBF7FA;padding:40px 16px;font-family:Georgia,'Times New Roman',serif;">
   <div style="max-width:480px;margin:0 auto;background:#ffffff;border-radius:16px;padding:40px 32px;text-align:center;">
     <p style="font-family:Arial,Helvetica,sans-serif;font-size:13px;letter-spacing:0.08em;text-transform:uppercase;color:#FF7A54;margin:0 0 16px;">Verso Único</p>
     <h1 style="font-size:26px;line-height:1.3;color:#332A3D;margin:0 0 12px;font-weight:normal;font-style:italic;">
-      A música pra ${input.recipientNickname} está pronta
+      ${isMx ? `La canción para ${input.recipientNickname} ya está lista` : `A música pra ${input.recipientNickname} está pronta`}
     </h1>
     <p style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#332A3D;margin:0 0 28px;">
-      ${input.buyerName ? `Oi, ${input.buyerName}! ` : ""}O presente foi liberado — a página com a música completa,
-      a letra em karaokê e o QR Code pra compartilhar já está no ar.
+      ${isMx
+        ? `${input.buyerName ? `¡Hola, ${input.buyerName}! ` : ""}Tu regalo ya está disponible — la página con la canción completa,
+      la letra en karaoke y el código QR para compartir ya está en línea.`
+        : `${input.buyerName ? `Oi, ${input.buyerName}! ` : ""}O presente foi liberado — a página com a música completa,
+      a letra em karaokê e o QR Code pra compartilhar já está no ar.`}
     </p>
     <a href="${input.giftUrl}" style="display:inline-block;background:#FF7A54;color:#2B1810;font-family:Arial,Helvetica,sans-serif;font-weight:bold;font-size:15px;text-decoration:none;padding:14px 32px;border-radius:999px;">
-      Ver o presente
+      ${isMx ? "Ver el regalo" : "Ver o presente"}
     </a>
     <p style="font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#9b8fa3;margin:28px 0 0;word-break:break-all;">
-      Ou copie o link: ${input.giftUrl}
+      ${isMx ? "O copia el enlace" : "Ou copie o link"}: ${input.giftUrl}
     </p>
   </div>
 </div>`.trim();
@@ -85,6 +89,12 @@ const REMARKETING_SUBJECTS: Record<1 | 2 | 3, (nickname: string) => string> = {
   3: (nickname) => `Última chance: desconto + quadro de graça pra ${nickname}`,
 };
 
+const REMARKETING_SUBJECTS_ES: Record<1 | 2 | 3, (nickname: string) => string> = {
+  1: (nickname) => `${nickname} todavía no ha escuchado la canción que empezaste`,
+  2: (nickname) => `$65 apartados para que termines la canción de ${nickname} 🎁`,
+  3: (nickname) => `Última oportunidad: descuento + cuadro gratis para ${nickname}`,
+};
+
 /**
  * Cada relação do wizard (ver components/wizard/Wizard.tsx) tem uma foto real
  * dela em public/images/occasions — reaproveita aqui como imagem de topo do
@@ -106,9 +116,25 @@ const RELATIONSHIP_IMAGE_SLUG: Record<string, string> = {
   amiga: "amiga",
 };
 
-function remarketingImageUrl(relationship: string): string {
+/** Mesma ideia do mapa BR acima, mas com os rótulos em espanhol do wizard MX (components/mx/wizard/Wizard.tsx). */
+const RELATIONSHIP_IMAGE_SLUG_ES: Record<string, string> = {
+  esposa: "esposa",
+  esposo: "marido",
+  novia: "namorados",
+  novio: "namorados",
+  mamá: "mae",
+  papá: "pai",
+  abuela: "avos",
+  abuelo: "avos",
+  hija: "filhos",
+  hijo: "filhos",
+  amiga: "amiga",
+};
+
+function remarketingImageUrl(relationship: string, market?: "br" | "mx"): string {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://versounicogift.online";
-  const slug = RELATIONSHIP_IMAGE_SLUG[relationship.trim().toLowerCase()] || "namorados";
+  const map = market === "mx" ? RELATIONSHIP_IMAGE_SLUG_ES : RELATIONSHIP_IMAGE_SLUG;
+  const slug = map[relationship.trim().toLowerCase()] || "namorados";
   return `${siteUrl}/images/occasions/${slug}.jpg`;
 }
 
@@ -152,9 +178,42 @@ function buildRemarketingBody(input: RemarketingEmailInput): { eyebrow: string; 
   };
 }
 
+/** Equivalente MX de buildRemarketingBody — mesma estrutura persuasiva (reciprocidade → desconto+âncora → urgência honesta), copy própria em espanhol. */
+function buildRemarketingBodyEs(input: RemarketingEmailInput): { eyebrow: string; greeting: string; body: string; cta: string } {
+  const name = input.recipientNickname || "esa persona";
+  const hello = input.buyerName ? `Hola, ${input.buyerName}.` : "Hola.";
+
+  if (input.stage === 1) {
+    return {
+      eyebrow: "tu letra ya existe",
+      greeting: `La canción para ${name} te está esperando`,
+      body: `${hello} La letra ya fue escrita exactamente como contaste la historia — eso no se pierde, queda guardado en tu enlace. Solo falta un paso: escuchar el fragmento cantado (es gratis) y decidir si quieres la versión completa. Nadie te cobra nada hasta ahí.`,
+      cta: "Escuchar el fragmento gratis",
+    };
+  }
+
+  const discount = formatMXN(input.discountCents);
+  if (input.stage === 2) {
+    return {
+      eyebrow: "descuento liberado",
+      greeting: `Aparté ${discount} para que termines la canción de ${name}`,
+      body: `${hello} Sé que la vida se atraviesa en el camino — por eso ya apliqué ${discount} de descuento directo en tu enlace, sin cupón que escribir. Y la compra sigue protegida por la garantía de 7 días: si no te gusta, te devolvemos, sin preguntas.`,
+      cta: `Terminar con ${discount} de descuento`,
+    };
+  }
+
+  return {
+    eyebrow: "último aviso",
+    greeting: `Es la última vez que te escribo sobre esto${input.buyerName ? `, ${input.buyerName}` : ""}`,
+    body: `Después de este correo dejo de recordarte la canción de ${name}. Mientras tanto, los ${discount} de descuento siguen vigentes — y el cuadro con la foto tratada por IA (que normalmente es un upsell pagado) sale gratis también, solo en esta última oportunidad.`,
+    cta: "Terminar con descuento + foto gratis",
+  };
+}
+
 function buildRemarketingHtml(input: RemarketingEmailInput): string {
-  const { eyebrow, greeting, body, cta } = buildRemarketingBody(input);
-  const imageUrl = remarketingImageUrl(input.relationship);
+  const isMx = input.market === "mx";
+  const { eyebrow, greeting, body, cta } = isMx ? buildRemarketingBodyEs(input) : buildRemarketingBody(input);
+  const imageUrl = remarketingImageUrl(input.relationship, input.market);
   return `
 <div style="background:#FBF7FA;padding:40px 16px;font-family:Georgia,'Times New Roman',serif;">
   <div style="max-width:480px;margin:0 auto;background:#ffffff;border-radius:16px;overflow:hidden;text-align:center;">
@@ -173,14 +232,16 @@ function buildRemarketingHtml(input: RemarketingEmailInput): string {
         ${cta}
       </a>
       <p style="font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#9b8fa3;margin:16px 0 0;">
-        Garantia de 7 dias · reembolso sem perguntas
+        ${isMx ? "Garantía de 7 días · reembolso sin preguntas" : "Garantia de 7 dias · reembolso sem perguntas"}
       </p>
       <p style="font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#9b8fa3;margin:20px 0 0;word-break:break-all;">
-        Ou copie o link: ${input.orderUrl}
+        ${isMx ? "O copia el enlace" : "Ou copie o link"}: ${input.orderUrl}
       </p>
       <p style="font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#c2b8c7;margin:32px 0 0;border-top:1px solid #f0e8f0;padding-top:16px;">
-        Verso Único — LVC DIGITAL LTDA · CNPJ 41.949.006/0001-97<br />
-        Não quer mais receber esses lembretes? <a href="${input.unsubscribeUrl}" style="color:#9b8fa3;">Clique aqui pra parar</a>.
+        ${isMx ? "Verso Único — LVC DIGITAL LTDA" : "Verso Único — LVC DIGITAL LTDA · CNPJ 41.949.006/0001-97"}<br />
+        ${isMx
+          ? `¿Ya no quieres recibir estos recordatorios? <a href="${input.unsubscribeUrl}" style="color:#9b8fa3;">Haz clic aquí para dejar de recibirlos</a>.`
+          : `Não quer mais receber esses lembretes? <a href="${input.unsubscribeUrl}" style="color:#9b8fa3;">Clique aqui pra parar</a>.`}
       </p>
     </div>
   </div>
@@ -198,7 +259,10 @@ export const resendEmailProvider: EmailProvider = {
       body: JSON.stringify({
         from: fromAddress(),
         to: input.toEmail,
-        subject: `A música pra ${input.recipientNickname} está pronta 🎁`,
+        subject:
+          input.market === "mx"
+            ? `Tu canción para ${input.recipientNickname} ya está lista 🎁`
+            : `A música pra ${input.recipientNickname} está pronta 🎁`,
         html: buildHtml(input),
       }),
     });
@@ -261,7 +325,9 @@ export const resendEmailProvider: EmailProvider = {
       body: JSON.stringify({
         from: fromAddress(),
         to: input.toEmail,
-        subject: REMARKETING_SUBJECTS[input.stage](input.recipientNickname || "alguém especial"),
+        subject: (input.market === "mx" ? REMARKETING_SUBJECTS_ES : REMARKETING_SUBJECTS)[input.stage](
+          input.recipientNickname || (input.market === "mx" ? "alguien especial" : "alguém especial")
+        ),
         html: buildRemarketingHtml(input),
       }),
     });

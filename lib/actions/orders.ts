@@ -6,7 +6,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { getLyricsProvider } from "@/lib/ai/lyrics";
 import { getMusicProvider } from "@/lib/ai/music";
 import { getEmailProvider } from "@/lib/email/provider";
-import { applyDiscount, computeOrderPriceCents, PHOTO_PDF_ADDON_CENTS } from "@/lib/pricing";
+import { applyDiscount, computeOrderPriceCents, PHOTO_PDF_ADDON_CENTS, PHOTO_PDF_ADDON_CENTS_MX } from "@/lib/pricing";
 import { isFrameSizeKey } from "@/lib/frameSizes";
 import type { Order, OrderLyric, OrderPhoto, OrderStatus, OrderTrack, WizardAnswers } from "@/types";
 
@@ -35,6 +35,7 @@ export async function getOrderByBuyerToken(buyerToken: string): Promise<OrderBun
 /** Cria o pedido a partir das respostas do wizard, gera as 2 opções de refrão e redireciona para o hub do pedido. */
 export async function createDraftOrder(answers: WizardAnswers): Promise<void> {
   const supabase = createAdminClient();
+  const isMx = answers.market === "mx";
 
   const { data: order, error } = await supabase
     .from("orders")
@@ -52,8 +53,12 @@ export async function createDraftOrder(answers: WizardAnswers): Promise<void> {
       mood: answers.mood || null,
       names_to_include: answers.namesToInclude || null,
       status: "draft",
-      price_cents: computeOrderPriceCents(answers.wantsCustomVoice),
+      price_cents: computeOrderPriceCents(answers.wantsCustomVoice, answers.market),
       wants_custom_voice: answers.wantsCustomVoice,
+      // Sem isso o default do banco ('BRL') valeria também pro México — ver
+      // migração 0001_init.sql. Nenhuma constraint prende esse valor, então
+      // "MXN" é aceito sem migração nova.
+      ...(isMx ? { currency: "MXN" } : {}),
     })
     .select()
     .single();
@@ -69,7 +74,7 @@ export async function createDraftOrder(answers: WizardAnswers): Promise<void> {
 
   await supabase.from("orders").update({ status: "lyric_generated" }).eq("id", order.id);
 
-  redirect(`/pedido/${order.buyer_token}`);
+  redirect(`${isMx ? "/mx" : ""}/pedido/${order.buyer_token}`);
 }
 
 /** Dispara a geração da música completa a partir da letra final (editada ou não). */
@@ -99,6 +104,7 @@ export async function startSongGeneration(buyerToken: string, finalLyricText: st
     voicePreference: order.voice_preference ?? "",
     mood: order.mood ?? "",
     voiceId: order.wants_custom_voice && order.voice_status === "ready" ? order.voice_id : null,
+    language: order.currency === "MXN" ? "es-MX" : "pt-BR",
   });
 
   const providerName = process.env.MUSIC_PROVIDER || (process.env.MUSIC_API_KEY ? "real" : "mock");
@@ -109,7 +115,7 @@ export async function startSongGeneration(buyerToken: string, finalLyricText: st
     .insert([{ order_id: order.id, provider: providerName, provider_job_id: providerJobId, variant: "take_1", status: "processing" }]);
 
   await supabase.from("orders").update({ status: "song_generating" }).eq("id", order.id);
-  revalidatePath(`/pedido/${buyerToken}`);
+  revalidatePath(`${order.currency === "MXN" ? "/mx" : ""}/pedido/${buyerToken}`);
 }
 
 /**
@@ -252,7 +258,7 @@ export async function checkSongGenerationProgress(buyerToken: string): Promise<{
         .eq("variant", t.variant);
     }
     await supabase.from("orders").update({ status: "preview_ready" }).eq("id", order.id);
-    revalidatePath(`/pedido/${buyerToken}`);
+    revalidatePath(`${order.currency === "MXN" ? "/mx" : ""}/pedido/${buyerToken}`);
     return { status: "preview_ready" };
   }
 
@@ -265,9 +271,14 @@ export async function updateBuyerEmail(buyerToken: string, email: string): Promi
     return { ok: false, error: "Digite um e-mail válido." };
   }
   const supabase = createAdminClient();
-  const { error } = await supabase.from("orders").update({ buyer_email: email }).eq("buyer_token", buyerToken);
+  const { data: order, error } = await supabase
+    .from("orders")
+    .update({ buyer_email: email })
+    .eq("buyer_token", buyerToken)
+    .select("currency")
+    .single();
   if (error) return { ok: false, error: "Não deu pra salvar agora." };
-  revalidatePath(`/pedido/${buyerToken}`);
+  revalidatePath(`${order?.currency === "MXN" ? "/mx" : ""}/pedido/${buyerToken}`);
   return { ok: true };
 }
 
@@ -289,8 +300,9 @@ export async function setPhotoPdfSelection(
   if (!bundle) return { ok: false, error: "Pedido não encontrado." };
   const { order } = bundle;
 
-  const basePriceCents = applyDiscount(computeOrderPriceCents(order.wants_custom_voice), order.discount_cents);
-  const photoAddonCents = order.promo_free_photo ? 0 : PHOTO_PDF_ADDON_CENTS;
+  const isMx = order.currency === "MXN";
+  const basePriceCents = applyDiscount(computeOrderPriceCents(order.wants_custom_voice, isMx ? "mx" : "br"), order.discount_cents);
+  const photoAddonCents = order.promo_free_photo ? 0 : isMx ? PHOTO_PDF_ADDON_CENTS_MX : PHOTO_PDF_ADDON_CENTS;
 
   const supabase = createAdminClient();
   const { error } = await supabase
@@ -304,7 +316,7 @@ export async function setPhotoPdfSelection(
     .eq("id", order.id);
 
   if (error) return { ok: false, error: "Não deu pra salvar agora." };
-  revalidatePath(`/pedido/${buyerToken}`);
+  revalidatePath(`${isMx ? "/mx" : ""}/pedido/${buyerToken}`);
   return { ok: true };
 }
 
@@ -313,6 +325,7 @@ export async function clearPhotoPdfSelection(buyerToken: string): Promise<void> 
   const bundle = await getOrderByBuyerToken(buyerToken);
   if (!bundle) throw new Error("Pedido não encontrado.");
   const { order } = bundle;
+  const isMx = order.currency === "MXN";
 
   const supabase = createAdminClient();
   await supabase
@@ -321,8 +334,8 @@ export async function clearPhotoPdfSelection(buyerToken: string): Promise<void> 
       wants_photo_pdf: false,
       photo_pdf_frame_size: null,
       photo_pdf_source_url: null,
-      price_cents: applyDiscount(computeOrderPriceCents(order.wants_custom_voice), order.discount_cents),
+      price_cents: applyDiscount(computeOrderPriceCents(order.wants_custom_voice, isMx ? "mx" : "br"), order.discount_cents),
     })
     .eq("id", order.id);
-  revalidatePath(`/pedido/${buyerToken}`);
+  revalidatePath(`${isMx ? "/mx" : ""}/pedido/${buyerToken}`);
 }
