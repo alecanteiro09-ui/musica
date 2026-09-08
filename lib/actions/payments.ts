@@ -157,10 +157,11 @@ export async function createStripeCheckout(buyerToken: string): Promise<{ client
       customerEmail: order.buyer_email ?? undefined,
       returnUrl: `${siteUrl}/mx/pedido/${buyerToken}`,
     });
-  } catch {
+  } catch (err) {
     // Nunca deixa vazar o erro técnico (ex: chave da Stripe ausente) pro
     // comprador — mostra uma mensagem em espanhol e deixa o log do servidor
     // com o detalhe real.
+    console.error("[createStripeCheckout] falha ao criar sessão Stripe", err);
     throw new Error("No pudimos abrir el pago ahora. Intenta de nuevo en unos minutos.");
   }
 
