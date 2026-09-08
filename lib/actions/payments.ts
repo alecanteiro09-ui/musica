@@ -131,12 +131,13 @@ export async function createCardCharge(buyerToken: string, customer: CardCustome
 
 /**
  * Cria (ou reaproveita) a sessão de Checkout da Stripe — mercado México
- * (app/mx). Diferente do Pix/cartão Woovi, o comprador SAI do nosso site
- * (redirect pra Stripe) e volta pra mesma página de pedido depois; a tela
- * MX de checkout então usa o mesmo polling (getPaymentStatus) já existente
- * pra detectar quando o webhook confirmar o pagamento.
+ * (app/mx). Diferente do Pix/cartão Woovi, é a Stripe quem hospeda o
+ * formulário de cartão, mas em modo "embedded": o comprador NUNCA sai do
+ * nosso site (fica num iframe dentro do CheckoutModal). Não reaproveita
+ * client_secret de uma sessão anterior — ele expira em ~30min e (diferente
+ * do link do modo hosted) não tem sentido guardar/devolver depois.
  */
-export async function createStripeCheckout(buyerToken: string): Promise<{ checkoutUrl: string }> {
+export async function createStripeCheckout(buyerToken: string): Promise<{ clientSecret: string }> {
   const bundle = await getOrderByBuyerToken(buyerToken);
   if (!bundle) throw new Error("Pedido não encontrado.");
   const { order } = bundle;
@@ -145,21 +146,8 @@ export async function createStripeCheckout(buyerToken: string): Promise<{ checko
   const supabase = createAdminClient();
   const correlationId = order.id;
 
-  const { data: existing } = await supabase
-    .from("payments")
-    .select("*")
-    .eq("order_id", order.id)
-    .in("status", ["created", "pix_generated"])
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (existing?.payment_link_url && existing.provider === "stripe" && existing.amount_cents === order.price_cents) {
-    return { checkoutUrl: existing.payment_link_url };
-  }
-
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
-  let checkout: { checkoutUrl: string; sessionId: string };
+  let checkout: { clientSecret: string; sessionId: string };
   try {
     checkout = await stripeProvider.createCheckoutSession({
       orderId: order.id,
@@ -167,8 +155,7 @@ export async function createStripeCheckout(buyerToken: string): Promise<{ checko
       amountCents: order.price_cents,
       description: `Canción personalizada para ${order.recipient_nickname ?? "alguien especial"}`,
       customerEmail: order.buyer_email ?? undefined,
-      successUrl: `${siteUrl}/mx/pedido/${buyerToken}`,
-      cancelUrl: `${siteUrl}/mx/pedido/${buyerToken}`,
+      returnUrl: `${siteUrl}/mx/pedido/${buyerToken}`,
     });
   } catch {
     // Nunca deixa vazar o erro técnico (ex: chave da Stripe ausente) pro
@@ -186,12 +173,11 @@ export async function createStripeCheckout(buyerToken: string): Promise<{ checko
       status: "pix_generated",
       method: "card",
       amount_cents: order.price_cents,
-      payment_link_url: checkout.checkoutUrl,
     },
     { onConflict: "correlation_id" }
   );
 
-  return { checkoutUrl: checkout.checkoutUrl };
+  return { clientSecret: checkout.clientSecret };
 }
 
 /** Usado pelo polling do frontend enquanto o QR Pix está na tela. */

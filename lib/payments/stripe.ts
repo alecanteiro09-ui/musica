@@ -26,19 +26,25 @@ export interface CreateStripeCheckoutInput {
   amountCents: number;
   description: string;
   customerEmail?: string;
-  successUrl: string;
-  cancelUrl: string;
+  returnUrl: string;
 }
 
 export interface StripeCheckout {
-  checkoutUrl: string;
+  clientSecret: string;
   sessionId: string;
 }
 
 export const stripeProvider = {
+  /**
+   * ui_mode "embedded" — a Checkout roda dentro de um iframe na nossa
+   * própria página (via <EmbeddedCheckout>), sem redirecionar o comprador
+   * pra fora do site. Por isso usa return_url (a Stripe volta pra cá depois
+   * de pagar) em vez de success_url/cancel_url, que são só do modo "hosted".
+   */
   async createCheckoutSession(input: CreateStripeCheckoutInput): Promise<StripeCheckout> {
     const session = await stripeClient().checkout.sessions.create({
       mode: "payment",
+      ui_mode: "embedded",
       payment_method_types: ["card"],
       line_items: [
         {
@@ -56,11 +62,10 @@ export const stripeProvider = {
       // fluxos, sem precisar de um caminho de confirmação duplicado.
       client_reference_id: input.correlationId,
       metadata: { correlationId: input.correlationId, orderId: input.orderId },
-      success_url: input.successUrl,
-      cancel_url: input.cancelUrl,
+      return_url: input.returnUrl,
     });
 
-    if (!session.url) throw new Error(`Stripe não devolveu checkout URL: ${JSON.stringify(session)}`);
-    return { checkoutUrl: session.url, sessionId: session.id };
+    if (!session.client_secret) throw new Error(`Stripe não devolveu client_secret: ${JSON.stringify(session)}`);
+    return { clientSecret: session.client_secret, sessionId: session.id };
   },
 };

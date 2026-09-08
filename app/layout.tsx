@@ -38,6 +38,9 @@ export const metadata: Metadata = {
     type: "website",
     locale: "pt_BR",
   },
+  other: {
+    google: "notranslate",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

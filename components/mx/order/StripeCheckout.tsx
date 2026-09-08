@@ -1,18 +1,23 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CreditCard, Loader2, ExternalLink } from "lucide-react";
-import { formatMXN } from "@/lib/utils";
+import { loadStripe } from "@stripe/stripe-js";
+import { EmbeddedCheckoutProvider, EmbeddedCheckout } from "@stripe/react-stripe-js";
+import { Loader2 } from "lucide-react";
 import { createStripeCheckout, getPaymentStatus } from "@/lib/actions/payments";
 import { trackEvent } from "@/lib/analytics/track";
 
+const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+  ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
+  : null;
+
 /**
- * Equivalente MX de PixCharge.tsx (Brasil) — mas o fluxo é bem mais simples:
- * a Stripe Checkout hospedada já resolve o cartão sem precisar de um
- * formulário próprio de dados extras (diferente da Woovi Parcelado). O
- * comprador sai do site, paga lá, e volta pra essa mesma página, que
- * detecta a confirmação pelo mesmo polling (getPaymentStatus).
+ * Equivalente MX de PixCharge.tsx (Brasil) — mas com Stripe: o formulário de
+ * cartão da própria Stripe fica embutido aquí (ui_mode "embedded", via
+ * <EmbeddedCheckout>), sin redirigir al comprador fuera del sitio. La
+ * confirmación real sigue llegando por el webhook (lib/payments/confirm.ts);
+ * este polling (getPaymentStatus) solo detecta cuándo refrescar la pantalla.
  */
 export function StripeCheckout({
   buyerToken,
@@ -24,13 +29,14 @@ export function StripeCheckout({
   buyerEmail?: string;
 }) {
   const router = useRouter();
-  const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const trackedPaymentInfo = useRef(false);
 
-  useEffect(() => {
-    createStripeCheckout(buyerToken)
-      .then(({ checkoutUrl }) => {
-        setCheckoutUrl(checkoutUrl);
+  const fetchClientSecret = useCallback(async () => {
+    try {
+      const { clientSecret } = await createStripeCheckout(buyerToken);
+      if (!trackedPaymentInfo.current) {
+        trackedPaymentInfo.current = true;
         trackEvent("AddPaymentInfo", {
           valueCents: priceCents,
           currency: "MXN",
@@ -38,14 +44,15 @@ export function StripeCheckout({
           email: buyerEmail,
           externalId: buyerToken,
         });
-        window.location.href = checkoutUrl;
-      })
-      .catch((err) => setError(err instanceof Error ? err.message : "No pudimos abrir el pago ahora."));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [buyerToken]);
+      }
+      return clientSecret;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No pudimos abrir el pago ahora.");
+      throw err;
+    }
+  }, [buyerToken, priceCents, buyerEmail]);
 
   useEffect(() => {
-    if (!checkoutUrl) return;
     const poll = setInterval(async () => {
       const { status } = await getPaymentStatus(buyerToken);
       if (status === "paid" || status === "delivered") {
@@ -54,31 +61,27 @@ export function StripeCheckout({
       }
     }, 3000);
     return () => clearInterval(poll);
-  }, [checkoutUrl, buyerToken, router]);
+  }, [buyerToken, router]);
+
+  if (!stripePromise) {
+    return <p className="mt-8 rounded-xl border border-accent bg-accent-soft p-4 text-center text-sm text-ink">No pudimos abrir el pago ahora. Intenta de nuevo en unos minutos.</p>;
+  }
 
   if (error) {
     return <p className="mt-8 rounded-xl border border-accent bg-accent-soft p-4 text-center text-sm text-ink">{error}</p>;
   }
 
-  if (!checkoutUrl) {
-    return (
-      <div className="mt-8 flex items-center justify-center gap-2 rounded-xl border border-base-border bg-base-soft p-8 text-sm text-ink-muted">
-        <Loader2 size={16} className="animate-spin" /> Abriendo el pago seguro...
-      </div>
-    );
-  }
-
   return (
-    <div className="mt-8 flex flex-col items-center gap-4 rounded-xl border border-base-border bg-base-soft p-6 text-center">
-      <CreditCard size={28} className="text-accent" />
-      <p className="text-sm text-ink">Abrimos el pago seguro de Stripe en esta pestaña.</p>
-      <p className="text-xs text-ink-muted">En cuanto confirme el pago de {formatMXN(priceCents)}, esta pantalla se libera sola.</p>
-      <a href={checkoutUrl} className="flex items-center gap-1 text-xs text-accent hover:underline">
-        <ExternalLink size={12} /> Reabrir el pago
-      </a>
-      <p className="flex items-center gap-2 text-xs text-ink-muted">
-        <Loader2 size={12} className="animate-spin" /> Esperando confirmación...
-      </p>
+    <div className="mt-8 overflow-hidden rounded-xl border border-base-border bg-base-soft">
+      <EmbeddedCheckoutProvider
+        stripe={stripePromise}
+        options={{
+          fetchClientSecret,
+          onComplete: () => router.refresh(),
+        }}
+      >
+        <EmbeddedCheckout />
+      </EmbeddedCheckoutProvider>
     </div>
   );
 }
