@@ -44,7 +44,10 @@ export const stripeProvider = {
   async createCheckoutSession(input: CreateStripeCheckoutInput): Promise<StripeCheckout> {
     const session = await stripeClient().checkout.sessions.create({
       mode: "payment",
-      ui_mode: "embedded",
+      // A versão da API pinada nesta conta (2026-02-25.clover) renomeou o
+      // valor "embedded" pra "embedded_page" — "embedded" sozinho passou a
+      // dar erro ("no longer supported").
+      ui_mode: "embedded_page",
       payment_method_types: ["card"],
       line_items: [
         {
@@ -63,6 +66,11 @@ export const stripeProvider = {
       client_reference_id: input.correlationId,
       metadata: { correlationId: input.correlationId, orderId: input.orderId },
       return_url: input.returnUrl,
+      // "always" (padrão) redirecionaria pra fora do iframe mesmo num
+      // pagamento simples de cartão — queremos ficar embutido e deixar o
+      // onComplete (StripeCheckout.tsx) cuidar disso; só sai daqui se o
+      // método de pagamento exigir redirecionamento mesmo (ex: 3D Secure).
+      redirect_on_completion: "if_required",
     });
 
     if (!session.client_secret) throw new Error(`Stripe não devolveu client_secret: ${JSON.stringify(session)}`);
